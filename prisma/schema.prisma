@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// User model
+model User {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  investmentProfiles InvestmentProfile[]
+  workflowSessions   WorkflowSession[]
+
+  @@map("users")
+}
+
+// Investment Profile model
+model InvestmentProfile {
+  id                     String   @id @default(cuid())
+  userId                 String
+  riskTolerance          String   // 'low' | 'medium' | 'high'
+  investmentHorizonYears Int
+  capitalAvailable       Float
+  longTermGoals          String   // 'steady growth' | 'dividend income' | 'capital preservation'
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("investment_profiles")
+}
+
+// Workflow Session model
+model WorkflowSession {
+  id             String   @id @default(cuid())
+  userId         String
+  currentStep    Int      @default(1)
+  completedSteps Int[]    @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stepData StepData[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([userId, createdAt]) // Composite index for workflow history queries
+  @@index([updatedAt]) // Index for finding recently updated sessions
+  @@map("workflow_sessions")
+}
+
+// Step Data model - stores the output data for each workflow step
+model StepData {
+  id        String   @id @default(cuid())
+  sessionId String
+  stepId    Int
+  data      Json     // Stores the step output data as JSON
+  success   Boolean  @default(true)
+  errors    String[] @default([])
+  warnings  String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  session WorkflowSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Ensure one record per step per session
+  @@unique([sessionId, stepId])
+  @@index([sessionId])
+  @@index([stepId]) // Index for querying specific step types across sessions
+  @@index([success]) // Index for filtering by success status
+  @@map("step_data")
+}
+
+// Stock Analysis Cache model - stores frequently accessed stock data
+model StockAnalysisCache {
+  id          String   @id @default(cuid())
+  ticker      String   @unique
+  companyName String?
+  sector      String?
+  lastFetched DateTime @default(now())
+  cacheData   Json     // Stores cached analysis data
+  hitCount    Int      @default(0) // Track how often this ticker is accessed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ticker]) // Primary index for ticker lookups
+  @@index([sector]) // Index for sector-based queries
+  @@index([lastFetched]) // Index for cache invalidation queries
+  @@index([hitCount]) // Index for finding most popular stocks
+  @@map("stock_analysis_cache")
+}
