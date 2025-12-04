@@ -10,11 +10,14 @@ import {
 } from "../types";
 import { SECEdgarAdapter } from "../data-adapters/sec-edgar-adapter";
 import { MorningstarAdapter } from "../data-adapters/morningstar-adapter";
+import { FinancialModelingPrepAdapter } from "../data-adapters/fmp-adapter";
+import { AlphaVantageAdapter } from "../data-adapters/alpha-vantage-adapter";
 
 /**
  * FundamentalAnalysisProcessor (Step 5)
- * Fetches and analyzes fundamental financial metrics
+ * Fetches and analyzes fundamental financial metrics using API adapters
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
+ * API Integration: Uses FMP for financial statements, Alpha Vantage for company overview (Requirement 6.2)
  */
 export class FundamentalAnalysisProcessor implements StepProcessor {
   stepId = 5;
@@ -23,13 +26,34 @@ export class FundamentalAnalysisProcessor implements StepProcessor {
 
   private secEdgarAdapter: SECEdgarAdapter;
   private morningstarAdapter: MorningstarAdapter;
+  private fmpAdapter: FinancialModelingPrepAdapter | null;
+  private alphaVantageAdapter: AlphaVantageAdapter | null;
 
   constructor(
     secEdgarAdapter?: SECEdgarAdapter,
-    morningstarAdapter?: MorningstarAdapter
+    morningstarAdapter?: MorningstarAdapter,
+    fmpAdapter?: FinancialModelingPrepAdapter,
+    alphaVantageAdapter?: AlphaVantageAdapter
   ) {
     this.secEdgarAdapter = secEdgarAdapter || new SECEdgarAdapter();
     this.morningstarAdapter = morningstarAdapter || new MorningstarAdapter();
+    
+    // Initialize API adapters with fallback to null if not configured
+    // Requirement 6.2: Use FMP adapter for financial statements
+    try {
+      this.fmpAdapter = fmpAdapter || new FinancialModelingPrepAdapter();
+    } catch (error) {
+      console.warn("FMP adapter not configured, will use fallback sources");
+      this.fmpAdapter = null;
+    }
+    
+    // Requirement 6.2: Use Alpha Vantage adapter for company overview
+    try {
+      this.alphaVantageAdapter = alphaVantageAdapter || new AlphaVantageAdapter();
+    } catch (error) {
+      console.warn("Alpha Vantage adapter not configured, will use fallback sources");
+      this.alphaVantageAdapter = null;
+    }
   }
 
   /**
@@ -53,8 +77,9 @@ export class FundamentalAnalysisProcessor implements StepProcessor {
   }
 
   /**
-   * Execute fundamental analysis
+   * Execute fundamental analysis using API adapters with fallback
    * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
+   * API Integration: Requirement 6.2
    */
   async execute(
     inputs: StepInputs,
@@ -75,47 +100,54 @@ export class FundamentalAnalysisProcessor implements StepProcessor {
 
       const ticker = inputs.ticker as string;
 
-      // Fetch data from multiple sources in parallel for better performance
-      // Requirements 5.1, 5.2
-      const [filingsResult, fundamentalsResult] = await Promise.allSettled([
+      // Requirement 6.2: Try to fetch fundamentals from API adapters first
+      let fundamentals: Fundamentals | null = null;
+      
+      // Try FMP adapter first for financial statements
+      if (this.fmpAdapter && this.fmpAdapter.isConfigured()) {
+        try {
+          fundamentals = await this.fetchFundamentalsFromFMP(ticker);
+          warnings.push(`Using Financial Modeling Prep API for ${ticker}`);
+        } catch (error) {
+          warnings.push(
+            `FMP API failed: ${(error as Error).message}. Trying fallback sources...`
+          );
+        }
+      }
+
+      // Fallback to Morningstar if FMP failed or not configured
+      if (!fundamentals) {
+        try {
+          fundamentals = await this.morningstarAdapter.fetchFundamentals(ticker);
+          warnings.push(`Using Morningstar (web scraping) for ${ticker}`);
+        } catch (error) {
+          errors.push(
+            `Failed to fetch fundamentals from all sources: ${(error as Error).message}`
+          );
+          return {
+            success: false,
+            errors,
+          };
+        }
+      }
+
+      // Fetch SEC filings in parallel (optional data)
+      const filingsResult = await Promise.allSettled([
         this.secEdgarAdapter.fetchFilings(ticker, "10-K"),
-        this.morningstarAdapter.fetchFundamentals(ticker),
       ]);
 
       // Requirement 5.1: Process SEC EDGAR filings
       let filings: any[] = [];
-      if (filingsResult.status === "fulfilled") {
-        filings = filingsResult.value;
+      if (filingsResult[0].status === "fulfilled") {
+        filings = filingsResult[0].value;
         if (filings.length === 0) {
           warnings.push(`No 10-K filings found for ${ticker} in SEC EDGAR`);
         }
       } else {
         warnings.push(
-          `Failed to fetch SEC filings: ${filingsResult.reason?.message || "Unknown error"}`
+          `Failed to fetch SEC filings: ${filingsResult[0].reason?.message || "Unknown error"}`
         );
       }
-
-      // Requirement 5.2: Process Morningstar fundamentals
-      let fundamentals: Fundamentals;
-      if (fundamentalsResult.status === "fulfilled") {
-        fundamentals = fundamentalsResult.value;
-      } else {
-        errors.push(
-          `Failed to fetch fundamentals from Morningstar: ${fundamentalsResult.reason?.message || "Unknown error"}`
-        );
-        return {
-          success: false,
-          errors,
-        };
-      }
-
-      // Requirements 5.3, 5.4, 5.5, 5.6, 5.7: Extract metrics
-      // These are already extracted by the Morningstar adapter:
-      // - revenueGrowth5y (Requirement 5.3)
-      // - earningsGrowth5y (Requirement 5.4)
-      // - profitMargin (Requirement 5.5)
-      // - debtToEquity (Requirement 5.6)
-      // - freeCashFlow (Requirement 5.7)
 
       // Add filing information to the output
       const latestFiling = filings.length > 0 ? filings[0] : null;
@@ -145,6 +177,94 @@ export class FundamentalAnalysisProcessor implements StepProcessor {
         errors,
       };
     }
+  }
+
+  /**
+   * Fetch fundamentals from FMP API
+   * Requirement 6.2: Use FMP adapter for financial statements
+   * Requirements 5.3, 5.4, 5.5, 5.6, 5.7: Extract metrics
+   */
+  private async fetchFundamentalsFromFMP(ticker: string): Promise<Fundamentals> {
+    if (!this.fmpAdapter) {
+      throw new Error("FMP adapter not configured");
+    }
+
+    // Fetch financial statements in parallel
+    const [incomeStatements, balanceSheets, cashFlowStatements] = await Promise.all([
+      this.fmpAdapter.getIncomeStatement(ticker, 'annual', 5),
+      this.fmpAdapter.getBalanceSheet(ticker, 'annual', 5),
+      this.fmpAdapter.getCashFlowStatement(ticker, 'annual', 5),
+    ]);
+
+    if (incomeStatements.length === 0) {
+      throw new Error(`No financial data available for ${ticker}`);
+    }
+
+    // Calculate 5-year growth rates
+    // Requirement 5.3: Revenue growth
+    const revenueGrowth5y = this.calculateGrowthRate(
+      incomeStatements.map(s => s.revenue)
+    );
+
+    // Requirement 5.4: Earnings growth
+    const earningsGrowth5y = this.calculateGrowthRate(
+      incomeStatements.map(s => s.netIncome)
+    );
+
+    // Requirement 5.5: Profit margin (most recent)
+    const latestIncome = incomeStatements[0];
+    const profitMargin = latestIncome.revenue > 0 
+      ? (latestIncome.netIncome / latestIncome.revenue) * 100 
+      : 0;
+
+    // Requirement 5.6: Debt to equity (most recent)
+    const latestBalance = balanceSheets[0];
+    const debtToEquity = latestBalance.equity > 0 
+      ? latestBalance.liabilities / latestBalance.equity 
+      : 0;
+
+    // Requirement 5.7: Free cash flow (most recent)
+    const latestCashFlow = cashFlowStatements[0];
+    const freeCashFlow = latestCashFlow.operatingCashFlow;
+
+    return {
+      ticker: ticker.toUpperCase(),
+      revenueGrowth5y,
+      earningsGrowth5y,
+      profitMargin,
+      debtToEquity,
+      freeCashFlow,
+      analyzedAt: new Date(),
+    };
+  }
+
+  /**
+   * Calculate compound annual growth rate (CAGR) from a series of values
+   * @param values - Array of values in reverse chronological order (newest first)
+   * @returns CAGR as a percentage
+   */
+  private calculateGrowthRate(values: number[]): number {
+    if (values.length < 2) {
+      return 0;
+    }
+
+    // Filter out zero or negative values
+    const validValues = values.filter(v => v > 0);
+    if (validValues.length < 2) {
+      return 0;
+    }
+
+    const endValue = validValues[0]; // Most recent
+    const startValue = validValues[validValues.length - 1]; // Oldest
+    const years = validValues.length - 1;
+
+    if (startValue === 0) {
+      return 0;
+    }
+
+    // CAGR formula: ((End Value / Start Value) ^ (1 / years)) - 1
+    const cagr = (Math.pow(endValue / startValue, 1 / years) - 1) * 100;
+    return cagr;
   }
 
   /**

@@ -25,6 +25,8 @@ export abstract class BaseDataSourceAdapter implements DataSourceAdapter {
 
   /**
    * Fetch data with retry logic and rate limiting
+   * Implements exponential backoff: 1s, 2s, 4s for retries
+   * Handles rate limit errors with appropriate waiting
    */
   async fetch(request: DataRequest): Promise<DataResponse> {
     await this.enforceRateLimit();
@@ -41,8 +43,39 @@ export abstract class BaseDataSourceAdapter implements DataSourceAdapter {
         lastError = error as Error;
         
         if (attempt < maxAttempts) {
-          const backoffMs = this.calculateBackoff(attempt);
+          // Check if this is a rate limit error with a suggested retry time
+          const isRateLimitError = error instanceof Error && 
+            (error.name === 'RateLimitError' || 
+             error.message.includes('Rate Limit') ||
+             error.message.includes('rate limit'));
+          
+          let backoffMs: number;
+          
+          if (isRateLimitError) {
+            // For rate limit errors, wait longer (60 seconds by default)
+            // Check if error has a retryAfter property
+            const retryAfter = (error as any).retryAfter;
+            backoffMs = retryAfter ? retryAfter * 1000 : 60000;
+            console.warn(
+              `[${this.sourceName}] Rate limit error on attempt ${attempt}/${maxAttempts}. ` +
+              `Waiting ${backoffMs / 1000}s before retry...`
+            );
+          } else {
+            // For other errors, use exponential backoff: 1s, 2s, 4s
+            backoffMs = this.calculateBackoff(attempt);
+            console.warn(
+              `[${this.sourceName}] Request failed on attempt ${attempt}/${maxAttempts}: ${lastError.message}. ` +
+              `Retrying in ${backoffMs / 1000}s...`
+            );
+          }
+          
           await this.sleep(backoffMs);
+        } else {
+          // Final attempt failed
+          console.error(
+            `[${this.sourceName}] All ${maxAttempts} attempts failed for ${request.endpoint}. ` +
+            `Last error: ${lastError.message}`
+          );
         }
       }
     }

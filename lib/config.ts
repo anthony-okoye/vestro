@@ -63,6 +63,48 @@ export const config = {
     },
   },
 
+  // API Adapters Configuration (Requirement 8.4)
+  apiAdapters: {
+    alphaVantage: {
+      apiKey: process.env.ALPHA_VANTAGE_API_KEY || "",
+      baseUrl: process.env.ALPHA_VANTAGE_BASE_URL || "https://www.alphavantage.co",
+      rateLimit: parseInt(process.env.ALPHA_VANTAGE_RATE_LIMIT || "5", 10), // 5 req/min free tier
+    },
+    fmp: {
+      apiKey: process.env.FMP_API_KEY || "",
+      baseUrl: process.env.FMP_BASE_URL || "https://financialmodelingprep.com/api/v3",
+      rateLimit: parseInt(process.env.FMP_RATE_LIMIT || "250", 10), // 250 req/day free tier
+    },
+    polygon: {
+      apiKey: process.env.POLYGON_API_KEY || "",
+      baseUrl: process.env.POLYGON_BASE_URL || "https://api.polygon.io",
+      rateLimit: parseInt(process.env.POLYGON_RATE_LIMIT || "5", 10), // 5 req/min free tier
+    },
+    fred: {
+      apiKey: process.env.FRED_API_KEY || "",
+      baseUrl: process.env.FRED_BASE_URL || "https://api.stlouisfed.org/fred",
+      rateLimit: parseInt(process.env.FRED_RATE_LIMIT || "120", 10), // 120 req/min
+    },
+  },
+
+  // Adapter Priority Configuration (Requirement 6.5)
+  adapterPriority: {
+    // Stock quotes: API adapters first, then web scraping
+    stockQuote: ["polygon", "alphaVantage", "yahooFinance"],
+    // Company profiles: API adapters first, then web scraping
+    companyProfile: ["alphaVantage", "fmp", "morningstar"],
+    // Financial statements: API adapters first, then web scraping
+    financialStatements: ["fmp", "morningstar", "secEdgar"],
+    // Historical data: API adapters first, then web scraping
+    historicalData: ["polygon", "alphaVantage", "tradingView"],
+    // Valuation metrics: API adapters first, then web scraping
+    valuationMetrics: ["fmp", "alphaVantage", "simplyWallSt"],
+    // Economic indicators: API only
+    economicIndicators: ["fred"],
+    // Sector data: Web scraping (no API alternatives yet)
+    sectorData: ["finviz", "yahooFinance"],
+  },
+
   // Rate Limits (requests per minute)
   rateLimits: {
     secEdgar: parseInt(process.env.RATE_LIMIT_SEC_EDGAR || "10", 10),
@@ -122,9 +164,15 @@ export function validateConfig(): void {
 export function getConfigStatus() {
   return {
     database: !!config.database.url,
+    // Legacy API keys
     federalReserveApiKey: !!config.dataSources.federalReserve.apiKey,
     morningstarApiKey: !!config.dataSources.morningstar.apiKey,
     simplyWallStApiKey: !!config.dataSources.simplyWallSt.apiKey,
     tipRanksApiKey: !!config.dataSources.tipRanks.apiKey,
+    // New API adapter keys (Requirement 8.4)
+    alphaVantageApiKey: !!config.apiAdapters.alphaVantage.apiKey,
+    fmpApiKey: !!config.apiAdapters.fmp.apiKey,
+    polygonApiKey: !!config.apiAdapters.polygon.apiKey,
+    fredApiKey: !!config.apiAdapters.fred.apiKey,
   };
 }

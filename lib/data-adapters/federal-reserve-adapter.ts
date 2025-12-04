@@ -1,6 +1,14 @@
 import { BaseDataSourceAdapter } from "../data-adapter";
 import { DataRequest, DataResponse } from "../types";
 import { createCachedFetcher, CACHE_CONFIG, CacheKeys } from "../cache-config";
+import {
+  ConfigurationError,
+  RateLimitError,
+  NetworkError,
+  ValidationError,
+  NotFoundError,
+  ErrorLogger,
+} from "../api-error";
 
 export interface EconomicData {
   seriesId: string;
@@ -16,10 +24,34 @@ export interface EconomicData {
 export class FederalReserveAdapter extends BaseDataSourceAdapter {
   sourceName = "Federal Reserve FRED";
   private apiKey: string;
+  private errorLogger = ErrorLogger.getInstance();
 
   constructor(apiKey?: string) {
     super("https://api.stlouisfed.org/fred", 120);
     this.apiKey = apiKey || process.env.FRED_API_KEY || "";
+    this.validateApiKey();
+  }
+
+  /**
+   * Validate that API key is configured
+   * @throws {ConfigurationError} If API key is missing or empty
+   */
+  private validateApiKey(): void {
+    if (!this.apiKey || this.apiKey.trim() === "") {
+      const error = new ConfigurationError(
+        "FRED API key is required. Please set FRED_API_KEY environment variable or provide it in the constructor.",
+        this.sourceName
+      );
+      this.errorLogger.log(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if the adapter is properly configured
+   */
+  isConfigured(): boolean {
+    return this.apiKey !== "" && this.apiKey.trim() !== "";
   }
 
   /**
@@ -126,18 +158,39 @@ export class FederalReserveAdapter extends BaseDataSourceAdapter {
 
   /**
    * Fetch a specific economic data series
+   * @param seriesId - FRED series ID (e.g., "FEDFUNDS", "CPIAUCSL")
+   * @param startDate - Optional start date for the series
+   * @param endDate - Optional end date for the series
+   * @param limit - Maximum number of observations to return
+   * @returns Array of economic data observations
    */
-  async fetchSeries(seriesId: string, limit: number = 1): Promise<EconomicData[]> {
+  async getSeries(
+    seriesId: string,
+    startDate?: Date,
+    endDate?: Date,
+    limit?: number
+  ): Promise<EconomicData[]> {
     try {
+      const params: Record<string, any> = {
+        series_id: seriesId,
+        api_key: this.apiKey,
+        file_type: "json",
+        sort_order: "desc",
+      };
+
+      if (startDate) {
+        params.observation_start = startDate.toISOString().split("T")[0];
+      }
+      if (endDate) {
+        params.observation_end = endDate.toISOString().split("T")[0];
+      }
+      if (limit) {
+        params.limit = limit;
+      }
+
       const request: DataRequest = {
         endpoint: "/series/observations",
-        params: {
-          series_id: seriesId,
-          api_key: this.apiKey,
-          file_type: "json",
-          sort_order: "desc",
-          limit: limit,
-        },
+        params,
       };
 
       const response = await this.fetch(request);
@@ -150,20 +203,114 @@ export class FederalReserveAdapter extends BaseDataSourceAdapter {
   }
 
   /**
+   * Fetch multiple economic data series in batch
+   * @param seriesIds - Array of FRED series IDs
+   * @param startDate - Optional start date for all series
+   * @param endDate - Optional end date for all series
+   * @returns Map of series ID to array of economic data
+   */
+  async getMultipleSeries(
+    seriesIds: string[],
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<Map<string, EconomicData[]>> {
+    const results = new Map<string, EconomicData[]>();
+
+    // Fetch all series in parallel
+    const promises = seriesIds.map(async (seriesId) => {
+      try {
+        const data = await this.getSeries(seriesId, startDate, endDate);
+        return { seriesId, data };
+      } catch (error) {
+        // Log error but don't fail the entire batch
+        console.error(`Failed to fetch series ${seriesId}:`, error);
+        return { seriesId, data: [] };
+      }
+    });
+
+    const settled = await Promise.all(promises);
+
+    settled.forEach(({ seriesId, data }) => {
+      results.set(seriesId, data);
+    });
+
+    return results;
+  }
+
+  /**
+   * Fetch the most recent value for a series
+   * @param seriesId - FRED series ID
+   * @returns The most recent observation value
+   */
+  async getLatestValue(seriesId: string): Promise<number> {
+    const data = await this.getSeries(seriesId, undefined, undefined, 1);
+
+    if (data.length === 0) {
+      const error = new NotFoundError(
+        `No data available for series ${seriesId}`,
+        this.sourceName
+      );
+      this.errorLogger.log(error, { seriesId });
+      throw error;
+    }
+
+    return data[0].value;
+  }
+
+  /**
+   * Fetch a specific economic data series (legacy method for backward compatibility)
+   * @deprecated Use getSeries() instead
+   */
+  async fetchSeries(seriesId: string, limit: number = 1): Promise<EconomicData[]> {
+    return this.getSeries(seriesId, undefined, undefined, limit);
+  }
+
+  /**
    * Perform the actual HTTP fetch
    */
   protected async performFetch(request: DataRequest): Promise<DataResponse> {
     const url = this.buildUrl(request.endpoint, request.params);
 
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(
-        `HTTP ${response.status}: ${response.statusText}`
+    let response: Response;
+    
+    try {
+      response = await fetch(url);
+    } catch (error) {
+      const networkError = new NetworkError(
+        `Network request failed: ${error instanceof Error ? error.message : String(error)}`,
+        this.sourceName,
+        error instanceof Error ? error : undefined
       );
+      this.errorLogger.log(networkError, { endpoint: request.endpoint, params: request.params });
+      throw networkError;
     }
 
-    const data = await response.json();
+    let data: any;
+    try {
+      data = await response.json();
+    } catch (error) {
+      const validationError = new ValidationError(
+        `Failed to parse JSON response: ${error instanceof Error ? error.message : String(error)}`,
+        this.sourceName,
+        error instanceof Error ? error : undefined
+      );
+      this.errorLogger.log(validationError, { endpoint: request.endpoint });
+      throw validationError;
+    }
+
+    // Check for FRED API errors in the response
+    if (data.error_code || data.error_message) {
+      this.throwFredError(data.error_code, data.error_message, response.status, request.endpoint);
+    }
+
+    if (!response.ok) {
+      const networkError = new NetworkError(
+        `HTTP ${response.status}: ${response.statusText}`,
+        this.sourceName
+      );
+      this.errorLogger.log(networkError, { endpoint: request.endpoint, status: response.status });
+      throw networkError;
+    }
 
     return {
       data,
@@ -171,6 +318,45 @@ export class FederalReserveAdapter extends BaseDataSourceAdapter {
       timestamp: new Date(),
       source: this.sourceName,
     };
+  }
+
+  /**
+   * Parse and throw descriptive FRED API errors
+   * @param errorCode - FRED error code
+   * @param errorMessage - FRED error message
+   * @param httpStatus - HTTP status code
+   * @param endpoint - API endpoint for logging
+   */
+  private throwFredError(errorCode: string, errorMessage: string, httpStatus: number, endpoint: string): never {
+    const code = errorCode || "UNKNOWN_ERROR";
+    const message = errorMessage || "Unknown error occurred";
+
+    // Map common FRED error codes to descriptive messages
+    const errorMap: Record<string, string> = {
+      "400": "Bad Request - Invalid parameters provided",
+      "401": "Unauthorized - Invalid or missing API key",
+      "404": "Not Found - Series or endpoint does not exist",
+      "429": "Rate Limit Exceeded - Too many requests",
+      "500": "Internal Server Error - FRED API is experiencing issues",
+    };
+
+    const description = errorMap[code] || errorMap[httpStatus.toString()] || message;
+    const fullMessage = `FRED API Error [${code}]: ${description}. Original message: ${message}`;
+
+    // Determine error type based on status code
+    let error;
+    if (httpStatus === 401 || code === "401") {
+      error = new ConfigurationError(fullMessage, this.sourceName);
+    } else if (httpStatus === 404 || code === "404") {
+      error = new NotFoundError(fullMessage, this.sourceName);
+    } else if (httpStatus === 429 || code === "429") {
+      error = new RateLimitError(fullMessage, this.sourceName, 60);
+    } else {
+      error = new ValidationError(fullMessage, this.sourceName);
+    }
+
+    this.errorLogger.log(error, { endpoint, errorCode: code, errorMessage: message, httpStatus });
+    throw error;
   }
 
   /**

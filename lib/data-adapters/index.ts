@@ -36,3 +36,23 @@ export { TradingViewAdapter } from "./tradingview-adapter";
 export type { ChartData, TechnicalIndicators } from "./tradingview-adapter";
 
 export { AnalystAggregator } from "./analyst-aggregator";
+
+// API-based adapters
+export { AlphaVantageAdapter } from "./alpha-vantage-adapter";
+export type { StockQuote as AlphaVantageStockQuote, CompanyProfile as AlphaVantageCompanyProfile } from "./alpha-vantage-adapter";
+
+export { FinancialModelingPrepAdapter } from "./fmp-adapter";
+export type { FinancialStatement, FMPCompanyProfile, KeyMetrics } from "./fmp-adapter";
+
+export { PolygonAdapter } from "./polygon-adapter";
+export type { StockQuote as PolygonStockQuote, OHLCVBar, HistoricalData } from "./polygon-adapter";
+
+// Fallback strategy configuration
+export { 
+  initializeAdapters, 
+  getConfiguredFallbackStrategies,
+  createStockQuoteAdapter,
+  createCompanyProfileAdapter,
+  createHistoricalDataAdapter,
+  createEconomicDataAdapter
+} from "./adapter-factory";

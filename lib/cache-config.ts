@@ -30,6 +30,11 @@ export const CACHE_CONFIG = {
     revalidate: 86400, // 1 day in seconds
     tags: ["financial-filings"],
   },
+  // Financial statements - updates quarterly (1 day)
+  FINANCIAL_STATEMENTS: {
+    revalidate: 86400, // 1 day in seconds
+    tags: ["financial-statements"],
+  },
   // Analyst ratings - daily updates (1 day)
   ANALYST_RATINGS: {
     revalidate: 86400, // 1 day in seconds
@@ -39,6 +44,11 @@ export const CACHE_CONFIG = {
   VALUATION_DATA: {
     revalidate: 86400, // 1 day in seconds
     tags: ["valuation-data"],
+  },
+  // Historical price data - daily updates (1 day)
+  HISTORICAL_DATA: {
+    revalidate: 86400, // 1 day in seconds
+    tags: ["historical-data"],
   },
 } as const;
 

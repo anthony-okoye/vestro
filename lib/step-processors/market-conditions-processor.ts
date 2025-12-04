@@ -14,8 +14,9 @@ import { BloombergAdapter } from "../data-adapters/bloomberg-adapter";
 
 /**
  * MarketConditionsProcessor (Step 2)
- * Fetches macro economic data and generates market snapshot
+ * Fetches macro economic data and generates market snapshot using FRED API
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
+ * API Integration: Uses FRED API adapter for economic indicators (Requirement 6.1)
  */
 export class MarketConditionsProcessor implements StepProcessor {
   stepId = 2;
@@ -31,6 +32,8 @@ export class MarketConditionsProcessor implements StepProcessor {
     cnbcAdapter?: CNBCAdapter,
     bloombergAdapter?: BloombergAdapter
   ) {
+    // Initialize FRED adapter with API key from environment
+    // Requirement 6.1: Use FRED API adapter for macroeconomic data
     this.federalReserveAdapter = federalReserveAdapter || new FederalReserveAdapter();
     this.cnbcAdapter = cnbcAdapter || new CNBCAdapter();
     this.bloombergAdapter = bloombergAdapter || new BloombergAdapter();
