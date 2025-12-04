@@ -80,7 +80,13 @@
   - **Property 2: Rate Limit Compliance**
   - **Validates: Requirements 1.4**
 
-- [ ]* 1.7 Write unit tests for Alpha Vantage adapter
+- [x] 1.7 Write unit tests for Alpha Vantage adapter
+
+
+
+
+
+
   - Test quote fetching with mocked responses
   - Test company overview fetching
   - Test error scenarios (invalid key, network errors)
@@ -137,7 +143,10 @@
   - Add exponential backoff for network errors
   - _Requirements: 2.6_
 
-- [ ]* 2.5 Write property test for retry with exponential backoff
+- [-] 2.5 Write property test for retry with exponential backoff
+
+
+
   - **Property 3: Retry with Exponential Backoff**
   - **Validates: Requirements 2.6**
 

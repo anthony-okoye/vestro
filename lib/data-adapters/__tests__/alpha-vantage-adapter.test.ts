@@ -1,8 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { AlphaVantageAdapter } from '../alpha-vantage-adapter';
-import { ConfigurationError } from '../../api-error';
+import { ConfigurationError, NotFoundError, ValidationError } from '../../api-error';
 import { DataRequest } from '../../types';
 import * as fc from 'fast-check';
+
+// Mock the cache-config module to bypass Next.js unstable_cache
+vi.mock('../../cache-config', () => ({
+  createCachedFetcher: <T extends (...args: any[]) => Promise<any>>(
+    fetcher: T,
+    _cacheKey: string,
+    _config: { revalidate: number; tags: string[] }
+  ): T => fetcher,
+  CACHE_CONFIG: {
+    QUOTES: { revalidate: 900, tags: ['quotes'] },
+    COMPANY_PROFILES: { revalidate: 604800, tags: ['company-profiles'] },
+  },
+  CacheKeys: {
+    quote: (ticker: string) => `quote-${ticker}`,
+    companyProfile: (ticker: string) => `company-profile-${ticker}`,
+  },
+}));
+
+// Import after mocking
+import { AlphaVantageAdapter } from '../alpha-vantage-adapter';
 
 describe('AlphaVantageAdapter', () => {
   describe('Configuration', () => {
@@ -24,6 +43,303 @@ describe('AlphaVantageAdapter', () => {
     it('should initialize successfully with valid API key', () => {
       const adapter = new AlphaVantageAdapter('test-api-key');
       expect(adapter.isConfigured()).toBe(true);
+    });
+  });
+
+  describe('Quote Fetching', () => {
+    let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      fetchSpy = vi.spyOn(global, 'fetch');
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should fetch and parse stock quote correctly', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          'Global Quote': {
+            '01. symbol': 'AAPL',
+            '05. price': '178.50',
+            '09. change': '2.35',
+            '10. change percent': '1.33%',
+            '06. volume': '45678900'
+          }
+        })
+      } as Response);
+
+      const quote = await adapter.getQuote('AAPL');
+
+      expect(quote.symbol).toBe('AAPL');
+      expect(quote.price).toBe(178.50);
+      expect(quote.change).toBe(2.35);
+      expect(quote.changePercent).toBe(1.33);
+      expect(quote.volume).toBe(45678900);
+      expect(quote.source).toBe('Alpha Vantage');
+      expect(quote.timestamp).toBeInstanceOf(Date);
+    });
+
+    it('should handle missing quote data gracefully', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          'Global Quote': {}
+        })
+      } as Response);
+
+      await expect(adapter.getQuote('INVALID')).rejects.toThrow('No quote data found');
+    });
+
+    it('should handle empty Global Quote response', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({})
+      } as Response);
+
+      await expect(adapter.getQuote('INVALID')).rejects.toThrow('No quote data found');
+    });
+
+    it('should parse quote with missing optional fields', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          'Global Quote': {
+            '01. symbol': 'TEST',
+            '05. price': '100.00'
+            // Missing change, changePercent, volume
+          }
+        })
+      } as Response);
+
+      const quote = await adapter.getQuote('TEST');
+
+      expect(quote.symbol).toBe('TEST');
+      expect(quote.price).toBe(100);
+      expect(quote.change).toBe(0);
+      expect(quote.changePercent).toBe(0);
+      expect(quote.volume).toBe(0);
+    });
+
+    it('should uppercase symbol in request', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          'Global Quote': {
+            '01. symbol': 'MSFT',
+            '05. price': '350.00',
+            '09. change': '5.00',
+            '10. change percent': '1.45%',
+            '06. volume': '20000000'
+          }
+        })
+      } as Response);
+
+      const quote = await adapter.getQuote('msft');
+
+      expect(quote.symbol).toBe('MSFT');
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('symbol=MSFT'),
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('Company Overview Fetching', () => {
+    let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      fetchSpy = vi.spyOn(global, 'fetch');
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should fetch and parse company overview correctly', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          Symbol: 'AAPL',
+          Name: 'Apple Inc',
+          Description: 'Apple Inc. designs, manufactures, and markets smartphones.',
+          Sector: 'Technology',
+          Industry: 'Consumer Electronics',
+          MarketCapitalization: '2800000000000',
+          PERatio: '28.5',
+          DividendYield: '0.0055',
+          Beta: '1.25'
+        })
+      } as Response);
+
+      const profile = await adapter.getCompanyOverview('AAPL');
+
+      expect(profile.symbol).toBe('AAPL');
+      expect(profile.name).toBe('Apple Inc');
+      expect(profile.description).toBe('Apple Inc. designs, manufactures, and markets smartphones.');
+      expect(profile.sector).toBe('Technology');
+      expect(profile.industry).toBe('Consumer Electronics');
+      expect(profile.marketCap).toBe(2800000000000);
+      expect(profile.peRatio).toBe(28.5);
+      expect(profile.dividendYield).toBeCloseTo(0.55, 2); // Converted to percentage, use toBeCloseTo for floating-point
+      expect(profile.beta).toBe(1.25);
+      expect(profile.source).toBe('Alpha Vantage');
+    });
+
+    it('should handle missing company overview data', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({})
+      } as Response);
+
+      await expect(adapter.getCompanyOverview('INVALID')).rejects.toThrow('No company overview data found');
+    });
+
+    it('should handle null and missing numeric values gracefully', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          Symbol: 'TEST',
+          Name: 'Test Company',
+          Description: '',
+          Sector: 'Unknown',
+          Industry: 'Unknown',
+          MarketCapitalization: null,
+          PERatio: '-',
+          DividendYield: 'None',
+          Beta: undefined
+        })
+      } as Response);
+
+      const profile = await adapter.getCompanyOverview('TEST');
+
+      expect(profile.symbol).toBe('TEST');
+      expect(profile.name).toBe('Test Company');
+      expect(profile.marketCap).toBe(0);
+      expect(profile.peRatio).toBeNull();
+      expect(profile.dividendYield).toBeNull();
+      expect(profile.beta).toBeNull();
+    });
+
+    it('should use symbol as fallback for missing name', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          Symbol: 'XYZ',
+          // Name is missing
+          Sector: 'Finance',
+          Industry: 'Banking'
+        })
+      } as Response);
+
+      const profile = await adapter.getCompanyOverview('xyz');
+
+      expect(profile.symbol).toBe('XYZ');
+      expect(profile.name).toBe('XYZ');
+    });
+  });
+
+  describe('Error Scenarios', () => {
+    let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      fetchSpy = vi.spyOn(global, 'fetch');
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should handle API error messages', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      vi.spyOn(adapter as any, 'sleep').mockResolvedValue(undefined);
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          'Error Message': 'Invalid API call. Please retry or visit the documentation.'
+        })
+      } as Response);
+
+      await expect(adapter.getQuote('AAPL')).rejects.toThrow('Alpha Vantage API Error');
+    });
+
+    it('should handle Information messages (rate limiting)', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      vi.spyOn(adapter as any, 'sleep').mockResolvedValue(undefined);
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          'Information': 'Thank you for using Alpha Vantage! Please visit premium for higher limits.'
+        })
+      } as Response);
+
+      await expect(adapter.getQuote('AAPL')).rejects.toThrow('Alpha Vantage');
+    });
+
+    it('should handle JSON parse errors', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      vi.spyOn(adapter as any, 'sleep').mockResolvedValue(undefined);
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.reject(new Error('Unexpected token'))
+      } as Response);
+
+      await expect(adapter.getQuote('AAPL')).rejects.toThrow();
+    });
+
+    it('should include source in error context', async () => {
+      const adapter = new AlphaVantageAdapter('test-api-key');
+      vi.spyOn(adapter as any, 'sleep').mockResolvedValue(undefined);
+      
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          'Global Quote': {}
+        })
+      } as Response);
+
+      try {
+        await adapter.getQuote('INVALID');
+        expect.fail('Should have thrown an error');
+      } catch (error) {
+        expect((error as Error).message).toContain('INVALID');
+      }
     });
   });
 
