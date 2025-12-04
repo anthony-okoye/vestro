@@ -142,7 +142,7 @@ export default function DisclaimerModal({ onAccept, show }: DisclaimerModalProps
           </div>
 
           <p className="text-xs text-gray-600 text-center">
-            By clicking "I Accept", you confirm that you have read and understood this disclaimer.
+            By clicking &quot;I Accept&quot;, you confirm that you have read and understood this disclaimer.
           </p>
         </div>
       </div>

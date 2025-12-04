@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import WorkflowProgress from '@/components/WorkflowProgress';
 import MarketOverview from '@/components/MarketOverview';
@@ -36,11 +36,7 @@ export default function WorkflowPage({ params }: WorkflowPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [executing, setExecuting] = useState(false);
 
-  useEffect(() => {
-    fetchWorkflowData();
-  }, [sessionId]);
-
-  async function fetchWorkflowData() {
+  const fetchWorkflowData = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch(`/api/workflows/${sessionId}`);
@@ -63,7 +59,11 @@ export default function WorkflowPage({ params }: WorkflowPageProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [sessionId]);
+
+  useEffect(() => {
+    fetchWorkflowData();
+  }, [fetchWorkflowData]);
 
   async function executeNextStep() {
     if (!status) return;

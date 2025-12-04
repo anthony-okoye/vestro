@@ -77,7 +77,7 @@ export default function HelpButton({ stepId }: HelpButtonProps) {
                     <li>• Focus on long-term fundamentals</li>
                     <li>• Diversify across sectors</li>
                     <li>• Review investments quarterly</li>
-                    <li>• Don't chase short-term trends</li>
+                    <li>• Don&apos;t chase short-term trends</li>
                   </ul>
                 </div>
 

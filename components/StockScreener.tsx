@@ -98,7 +98,7 @@ export default function StockScreener({ sessionId, initialStocks = [] }: StockSc
       {!isLoading && stocks.length === 0 && !error && (
         <div className="bg-gray-50 border-2 border-gray-300 p-8 text-center">
           <p className="text-gray-600">
-            Configure your filters and click "Apply Filters" to screen stocks.
+            Configure your filters and click &quot;Apply Filters&quot; to screen stocks.
           </p>
         </div>
       )}

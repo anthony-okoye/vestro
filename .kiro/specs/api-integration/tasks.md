@@ -459,7 +459,16 @@
   - Test company overview fetching end-to-end
   - _Requirements: 7.1_
 
-- [ ]* 8.2 Write integration test for FMP adapter
+- [x] 8.2 Write integration test for FMP adapter
+
+
+
+
+
+
+
+
+
   - Test actual API calls with real API key
   - Test financial statement fetching end-to-end
   - Test company profile fetching end-to-end

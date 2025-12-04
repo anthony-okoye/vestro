@@ -232,7 +232,7 @@ export default function MonitoringDashboard({ plans }: MonitoringDashboardProps)
             <strong>Focus on Fundamentals:</strong> Price alerts are useful, but fundamental changes matter more
           </p>
           <p>
-            <strong>Long-term Perspective:</strong> Remember your investment horizon and don't overreact to volatility
+            <strong>Long-term Perspective:</strong> Remember your investment horizon and don&apos;t overreact to volatility
           </p>
         </div>
       </div>
@@ -244,7 +244,7 @@ export default function MonitoringDashboard({ plans }: MonitoringDashboardProps)
         </h4>
         <p className="text-xs text-yellow-800">
           This monitoring dashboard is for educational purposes. In practice, you would integrate 
-          with your broker's alert system or use dedicated portfolio tracking software for real-time 
+          with your broker&apos;s alert system or use dedicated portfolio tracking software for real-time 
           monitoring and notifications.
         </p>
       </div>

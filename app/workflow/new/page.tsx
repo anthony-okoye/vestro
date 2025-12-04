@@ -107,7 +107,7 @@ export default function NewWorkflowPage() {
           </h3>
           <div className="space-y-2 text-sm text-blue-800">
             <p>
-              <strong>Step 2-3:</strong> We'll analyze current market conditions and identify promising sectors
+              <strong>Step 2-3:</strong> We&apos;ll analyze current market conditions and identify promising sectors
             </p>
             <p>
               <strong>Step 4-7:</strong> Screen stocks, analyze fundamentals, competitive position, and valuations

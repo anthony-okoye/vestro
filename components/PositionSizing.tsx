@@ -172,7 +172,7 @@ export default function PositionSizing({
           </h4>
           <p className="text-xs text-green-800">
             Executes only at your specified price or better. Provides price control but 
-            may not fill if the price doesn't reach your limit.
+            may not fill if the price doesn&apos;t reach your limit.
           </p>
         </div>
       </div>

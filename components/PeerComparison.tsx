@@ -177,7 +177,7 @@ export default function PeerComparison({ targetTicker, peers, timestamp }: PeerC
           Relative Valuation Analysis
         </h4>
         <p className="text-sm text-blue-800">
-          Compare {targetTicker}'s valuation multiples to its peers to identify whether it's 
+          Compare {targetTicker}&apos;s valuation multiples to its peers to identify whether it&apos;s 
           trading at a premium or discount relative to similar companies in the industry.
         </p>
       </div>
