@@ -153,7 +153,8 @@
   - **Property 3: Retry with Exponential Backoff**
   - **Validates: Requirements 2.6**
 
-- [ ] 2.6 Write unit tests for FMP adapter
+- [x] 2.6 Write unit tests for FMP adapter
+
 
 
 
@@ -210,7 +211,16 @@
   - Process queued requests within rate limits
   - _Requirements: 3.5_
 
-- [ ]* 3.5 Write unit tests for Polygon adapter
+- [x] 3.5 Write unit tests for Polygon adapter
+
+
+
+
+
+
+
+
+
   - Test current quote fetching
   - Test historical data fetching
   - Test rate limit queueing
@@ -245,11 +255,21 @@
   - Throw descriptive errors with error codes
   - _Requirements: 4.5_
 
-- [ ]* 4.4 Write property test for error logging
+- [x] 4.4 Write property test for error logging
+
+
+
+
+
+
   - **Property 4: Error Logging**
   - **Validates: Requirements 5.1**
 
-- [ ]* 4.5 Write unit tests for updated FRED adapter
+- [ ] 4.5 Write unit tests for updated FRED adapter
+
+
+
+
   - Test series fetching with API key
   - Test batch fetching
   - Test error handling
@@ -291,11 +311,23 @@
   - Test fallback activation on primary source failure
   - _Requirements: 5.5_
 
-- [ ]* 5.4 Write property test for response validation
+- [x] 5.4 Write property test for response validation
+
+
+
+
+
+
   - **Property 5: Response Validation**
   - **Validates: Requirements 5.4**
 
-- [ ]* 5.5 Write property test for fallback activation
+- [x] 5.5 Write property test for fallback activation
+
+
+
+
+
+
   - **Property 6: Fallback Activation**
   - **Validates: Requirements 5.5**
 
