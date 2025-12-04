@@ -143,14 +143,22 @@
   - Add exponential backoff for network errors
   - _Requirements: 2.6_
 
-- [-] 2.5 Write property test for retry with exponential backoff
+- [x] 2.5 Write property test for retry with exponential backoff
+
+
+
 
 
 
   - **Property 3: Retry with Exponential Backoff**
   - **Validates: Requirements 2.6**
 
-- [ ]* 2.6 Write unit tests for FMP adapter
+- [ ] 2.6 Write unit tests for FMP adapter
+
+
+
+
+
   - Test income statement fetching
   - Test balance sheet fetching
   - Test cash flow statement fetching
