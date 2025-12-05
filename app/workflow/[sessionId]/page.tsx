@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import WorkflowProgress from '@/components/WorkflowProgress';
-import MarketOverview from '@/components/MarketOverview';
 import Link from 'next/link';
 
 interface WorkflowPageProps {
