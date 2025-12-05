@@ -6,7 +6,7 @@ import { StateManager } from "@/lib/state-manager";
  * Get all workflow sessions for a user
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { userId: string } }
 ) {
   try {
