@@ -241,7 +241,6 @@ export class TradingViewAdapter extends BaseDataSourceAdapter {
       throw new Error("No candle data available for analysis");
     }
 
-    const currentPrice = candles[candles.length - 1].close;
     const trend = this.determineTrend(candles, indicators);
     const maCross = this.detectMACrossover(indicators);
 

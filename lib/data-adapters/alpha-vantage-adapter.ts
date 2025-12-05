@@ -117,7 +117,7 @@ export class AlphaVantageAdapter extends BaseDataSourceAdapter {
       }
     },
     CacheKeys.quote("dynamic"),
-    CACHE_CONFIG.QUOTES
+    { ...CACHE_CONFIG.QUOTES }
   );
 
   /**
@@ -157,7 +157,7 @@ export class AlphaVantageAdapter extends BaseDataSourceAdapter {
       }
     },
     CacheKeys.companyProfile("dynamic"),
-    CACHE_CONFIG.COMPANY_PROFILES
+    { ...CACHE_CONFIG.COMPANY_PROFILES }
   );
 
   /**

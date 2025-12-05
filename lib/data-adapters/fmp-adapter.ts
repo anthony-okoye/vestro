@@ -183,7 +183,7 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
       }
     },
     "fmp-income-statement",
-    CACHE_CONFIG.FINANCIAL_STATEMENTS
+    { ...CACHE_CONFIG.FINANCIAL_STATEMENTS }
   );
 
   /**
@@ -228,7 +228,7 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
       }
     },
     "fmp-balance-sheet",
-    CACHE_CONFIG.FINANCIAL_STATEMENTS
+    { ...CACHE_CONFIG.FINANCIAL_STATEMENTS }
   );
 
   /**
@@ -273,7 +273,7 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
       }
     },
     "fmp-cash-flow-statement",
-    CACHE_CONFIG.FINANCIAL_STATEMENTS
+    { ...CACHE_CONFIG.FINANCIAL_STATEMENTS }
   );
 
   /**
@@ -423,7 +423,7 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
       }
     },
     "fmp-company-profile",
-    CACHE_CONFIG.COMPANY_PROFILES
+    { ...CACHE_CONFIG.COMPANY_PROFILES }
   );
 
   /**
@@ -468,7 +468,7 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
       }
     },
     "fmp-key-metrics",
-    CACHE_CONFIG.VALUATION_DATA
+    { ...CACHE_CONFIG.VALUATION_DATA }
   );
 
   /**

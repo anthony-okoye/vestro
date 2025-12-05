@@ -11,13 +11,12 @@ import {
 import { SECEdgarAdapter } from "../data-adapters/sec-edgar-adapter";
 import { MorningstarAdapter } from "../data-adapters/morningstar-adapter";
 import { FinancialModelingPrepAdapter } from "../data-adapters/fmp-adapter";
-import { AlphaVantageAdapter } from "../data-adapters/alpha-vantage-adapter";
 
 /**
  * FundamentalAnalysisProcessor (Step 5)
  * Fetches and analyzes fundamental financial metrics using API adapters
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
- * API Integration: Uses FMP for financial statements, Alpha Vantage for company overview (Requirement 6.2)
+ * API Integration: Uses FMP for financial statements (Requirement 6.2)
  */
 export class FundamentalAnalysisProcessor implements StepProcessor {
   stepId = 5;
@@ -27,13 +26,11 @@ export class FundamentalAnalysisProcessor implements StepProcessor {
   private secEdgarAdapter: SECEdgarAdapter;
   private morningstarAdapter: MorningstarAdapter;
   private fmpAdapter: FinancialModelingPrepAdapter | null;
-  private alphaVantageAdapter: AlphaVantageAdapter | null;
 
   constructor(
     secEdgarAdapter?: SECEdgarAdapter,
     morningstarAdapter?: MorningstarAdapter,
-    fmpAdapter?: FinancialModelingPrepAdapter,
-    alphaVantageAdapter?: AlphaVantageAdapter
+    fmpAdapter?: FinancialModelingPrepAdapter
   ) {
     this.secEdgarAdapter = secEdgarAdapter || new SECEdgarAdapter();
     this.morningstarAdapter = morningstarAdapter || new MorningstarAdapter();
@@ -45,14 +42,6 @@ export class FundamentalAnalysisProcessor implements StepProcessor {
     } catch (error) {
       console.warn("FMP adapter not configured, will use fallback sources");
       this.fmpAdapter = null;
-    }
-    
-    // Requirement 6.2: Use Alpha Vantage adapter for company overview
-    try {
-      this.alphaVantageAdapter = alphaVantageAdapter || new AlphaVantageAdapter();
-    } catch (error) {
-      console.warn("Alpha Vantage adapter not configured, will use fallback sources");
-      this.alphaVantageAdapter = null;
     }
   }
 

@@ -64,7 +64,7 @@ export class FinvizAdapter extends BaseDataSourceAdapter {
       }
     },
     CacheKeys.stockScreen("dynamic"),
-    CACHE_CONFIG.QUOTES
+    { ...CACHE_CONFIG.QUOTES }
   );
 
   /**

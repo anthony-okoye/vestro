@@ -6,7 +6,6 @@ import {
   InputSchema,
   OutputSchema,
   WorkflowContext,
-  MoatAnalysis,
 } from "../types";
 import { ReutersAdapter } from "../data-adapters/reuters-adapter";
 import { YahooFinanceAdapter } from "../data-adapters/yahoo-finance-adapter";

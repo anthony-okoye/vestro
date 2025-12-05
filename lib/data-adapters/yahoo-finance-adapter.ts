@@ -81,7 +81,7 @@ export class YahooFinanceAdapter extends BaseDataSourceAdapter {
       }
     },
     CacheKeys.quote("dynamic"),
-    CACHE_CONFIG.QUOTES
+    { ...CACHE_CONFIG.QUOTES }
   );
 
   /**
@@ -127,7 +127,7 @@ export class YahooFinanceAdapter extends BaseDataSourceAdapter {
       }
     },
     CacheKeys.sectorData(),
-    CACHE_CONFIG.SECTOR_DATA
+    { ...CACHE_CONFIG.SECTOR_DATA }
   );
 
   /**

@@ -84,7 +84,7 @@ export class FederalReserveAdapter extends BaseDataSourceAdapter {
       }
     },
     CacheKeys.interestRate(),
-    CACHE_CONFIG.MACRO_DATA
+    { ...CACHE_CONFIG.MACRO_DATA }
   );
 
   /**
@@ -121,7 +121,7 @@ export class FederalReserveAdapter extends BaseDataSourceAdapter {
       }
     },
     CacheKeys.inflationRate(),
-    CACHE_CONFIG.MACRO_DATA
+    { ...CACHE_CONFIG.MACRO_DATA }
   );
 
   /**
@@ -153,7 +153,7 @@ export class FederalReserveAdapter extends BaseDataSourceAdapter {
       }
     },
     CacheKeys.unemploymentRate(),
-    CACHE_CONFIG.MACRO_DATA
+    { ...CACHE_CONFIG.MACRO_DATA }
   );
 
   /**
