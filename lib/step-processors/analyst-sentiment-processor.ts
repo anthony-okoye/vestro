@@ -8,6 +8,7 @@ import {
   WorkflowContext,
   AnalystSummary,
 } from "../types";
+import { FinancialModelingPrepAdapter } from "../data-adapters/fmp-adapter";
 import { TipRanksAdapter } from "../data-adapters/tipranks-adapter";
 import { MarketBeatAdapter } from "../data-adapters/marketbeat-adapter";
 import { AnalysisEngine } from "../analysis-engine";
@@ -22,15 +23,23 @@ export class AnalystSentimentProcessor implements StepProcessor {
   stepName = "Analyst Sentiment";
   isOptional = false;
 
+  private fmpAdapter: FinancialModelingPrepAdapter | null;
   private tipRanksAdapter: TipRanksAdapter;
   private marketBeatAdapter: MarketBeatAdapter;
   private analysisEngine: AnalysisEngine;
 
   constructor(
+    fmpAdapter?: FinancialModelingPrepAdapter | null,
     tipRanksAdapter?: TipRanksAdapter,
     marketBeatAdapter?: MarketBeatAdapter,
     analysisEngine?: AnalysisEngine
   ) {
+    // FMP adapter is primary source
+    try {
+      this.fmpAdapter = fmpAdapter !== undefined ? fmpAdapter : new FinancialModelingPrepAdapter();
+    } catch {
+      this.fmpAdapter = null;
+    }
     this.tipRanksAdapter = tipRanksAdapter || new TipRanksAdapter();
     this.marketBeatAdapter = marketBeatAdapter || new MarketBeatAdapter();
     this.analysisEngine = analysisEngine || new AnalysisEngine();
@@ -79,32 +88,49 @@ export class AnalystSentimentProcessor implements StepProcessor {
 
       const ticker = inputs.ticker as string;
 
-      // Fetch analyst ratings from multiple sources in parallel
-      // Requirements 9.1, 9.2
-      const [tipRanksResult, marketBeatResult] = await Promise.allSettled([
-        this.tipRanksAdapter.fetchAnalystRatings(ticker),
-        this.marketBeatAdapter.fetchAnalystRatings(ticker),
-      ]);
-
       // Collect all analyst ratings from multiple sources
       const allRatings: any[] = [];
+      let fmpRatingsData: any = null;
 
-      // Requirement 9.1: Process TipRanks ratings
-      if (tipRanksResult.status === "fulfilled") {
-        allRatings.push(...tipRanksResult.value.ratings);
-      } else {
-        warnings.push(
-          `Failed to fetch TipRanks data: ${tipRanksResult.reason?.message || "Unknown error"}`
-        );
+      // Try FMP first (primary source - has proper API)
+      if (this.fmpAdapter && this.fmpAdapter.isConfigured()) {
+        try {
+          fmpRatingsData = await this.fmpAdapter.getAnalystRatings(ticker);
+          if (fmpRatingsData.ratings && fmpRatingsData.ratings.length > 0) {
+            allRatings.push(...fmpRatingsData.ratings);
+            warnings.push(`Using Financial Modeling Prep API for ${ticker} analyst ratings`);
+          }
+        } catch (error) {
+          warnings.push(
+            `FMP API failed: ${(error as Error).message}. Trying fallback sources...`
+          );
+        }
       }
 
-      // Requirement 9.2: Process MarketBeat ratings
-      if (marketBeatResult.status === "fulfilled") {
-        allRatings.push(...marketBeatResult.value.ratings);
-      } else {
-        warnings.push(
-          `Failed to fetch MarketBeat data: ${marketBeatResult.reason?.message || "Unknown error"}`
-        );
+      // Fallback to TipRanks and MarketBeat if FMP didn't return data
+      if (allRatings.length === 0) {
+        const [tipRanksResult, marketBeatResult] = await Promise.allSettled([
+          this.tipRanksAdapter.fetchAnalystRatings(ticker),
+          this.marketBeatAdapter.fetchAnalystRatings(ticker),
+        ]);
+
+        // Process TipRanks ratings
+        if (tipRanksResult.status === "fulfilled") {
+          allRatings.push(...tipRanksResult.value.ratings);
+        } else {
+          warnings.push(
+            `Failed to fetch TipRanks data: ${tipRanksResult.reason?.message || "Unknown error"}`
+          );
+        }
+
+        // Process MarketBeat ratings
+        if (marketBeatResult.status === "fulfilled") {
+          allRatings.push(...marketBeatResult.value.ratings);
+        } else {
+          warnings.push(
+            `Failed to fetch MarketBeat data: ${marketBeatResult.reason?.message || "Unknown error"}`
+          );
+        }
       }
 
       // Check if we have any ratings

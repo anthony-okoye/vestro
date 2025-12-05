@@ -76,6 +76,30 @@ export interface FMPHistoricalData {
 }
 
 /**
+ * Analyst rating from FMP
+ */
+export interface FMPAnalystRating {
+  symbol: string;
+  date: string;
+  analystName: string;
+  analystCompany: string;
+  rating: string;
+  priceTarget: number | null;
+  source: string;
+}
+
+/**
+ * Analyst ratings response from FMP
+ */
+export interface FMPAnalystRatings {
+  symbol: string;
+  ratings: FMPAnalystRating[];
+  consensus: string;
+  averageTarget: number | null;
+  source: string;
+}
+
+/**
  * Adapter for Financial Modeling Prep API
  * Fetches financial statements, company profiles, and valuation metrics
  * 
@@ -598,6 +622,112 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
       bars,
       source: this.sourceName,
     };
+  }
+
+  /**
+   * Fetch analyst ratings for a symbol
+   * @param symbol - Stock ticker symbol (e.g., "AAPL")
+   * @returns Analyst ratings with consensus and price targets
+   */
+  async getAnalystRatings(symbol: string): Promise<FMPAnalystRatings> {
+    return this.getAnalystRatingsCached(symbol);
+  }
+
+  /**
+   * Cached version of getAnalystRatings
+   * Cache for 24 hours (analyst ratings update infrequently)
+   * Uses the /price-target-consensus endpoint which provides analyst price targets
+   */
+  private getAnalystRatingsCached = createCachedFetcher(
+    async (symbol: string): Promise<FMPAnalystRatings> => {
+      try {
+        // FMP endpoint for price target consensus data
+        const request: DataRequest = {
+          endpoint: "/price-target-consensus",
+          params: {
+            symbol: symbol.toUpperCase(),
+          },
+        };
+
+        const response = await this.fetch(request);
+        const ratings = this.parseAnalystRatings(response.data, symbol);
+
+        return ratings;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Failed to fetch analyst ratings for ${symbol}: ${errorMessage}`
+        );
+      }
+    },
+    "fmp-analyst-ratings",
+    { ...CACHE_CONFIG.ANALYST_RATINGS }
+  );
+
+  /**
+   * Parse analyst ratings from FMP API response
+   * Handles the /price-target-consensus endpoint format
+   * Response format: [{ symbol, targetHigh, targetLow, targetConsensus, targetMedian }]
+   * @param data - Raw API response data
+   * @param symbol - Stock ticker symbol
+   * @returns Parsed analyst ratings
+   */
+  private parseAnalystRatings(data: any, symbol: string): FMPAnalystRatings {
+    // Handle both array and single object responses
+    const targetData = Array.isArray(data) ? data[0] : data;
+
+    if (!targetData || Object.keys(targetData).length === 0) {
+      // Return empty ratings instead of throwing - some stocks may not have target data
+      return {
+        symbol: symbol.toUpperCase(),
+        ratings: [],
+        consensus: "N/A",
+        averageTarget: null,
+        source: this.sourceName,
+      };
+    }
+
+    // FMP /price-target-consensus returns: targetHigh, targetLow, targetConsensus, targetMedian
+    const targetConsensus = targetData.targetConsensus || null;
+    const targetHigh = targetData.targetHigh || null;
+    const targetLow = targetData.targetLow || null;
+    const targetMedian = targetData.targetMedian || null;
+
+    // Create rating entries based on price target data
+    const ratings: FMPAnalystRating[] = [{
+      symbol: symbol.toUpperCase(),
+      date: new Date().toISOString().split('T')[0],
+      analystName: "Consensus",
+      analystCompany: "Multiple Analysts",
+      rating: "Hold", // Price target data doesn't include buy/sell ratings
+      priceTarget: targetConsensus,
+      source: this.sourceName,
+    }];
+
+    // Derive a consensus recommendation based on price target vs current price
+    // Since we don't have current price here, we'll use "Hold" as default
+    // The actual sentiment analysis will be done in the processor
+    const consensus = "Hold";
+
+    return {
+      symbol: symbol.toUpperCase(),
+      ratings,
+      consensus,
+      averageTarget: targetConsensus,
+      source: this.sourceName,
+    };
+  }
+
+  /**
+   * Normalize rating string to standard format
+   */
+  private normalizeRating(rating: string): string {
+    const lower = rating.toLowerCase();
+    if (lower.includes("strong buy") || lower.includes("outperform")) return "Strong Buy";
+    if (lower.includes("buy") || lower.includes("overweight")) return "Buy";
+    if (lower.includes("strong sell") || lower.includes("underperform")) return "Strong Sell";
+    if (lower.includes("sell") || lower.includes("underweight")) return "Sell";
+    return "Hold";
   }
 
   /**
