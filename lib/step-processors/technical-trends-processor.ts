@@ -11,12 +11,13 @@ import {
 import { TradingViewAdapter } from "../data-adapters/tradingview-adapter";
 import { PolygonAdapter, HistoricalData } from "../data-adapters/polygon-adapter";
 import { AlphaVantageAdapter } from "../data-adapters/alpha-vantage-adapter";
+import { FinancialModelingPrepAdapter, FMPHistoricalData } from "../data-adapters/fmp-adapter";
 
 /**
  * TechnicalTrendsProcessor (Step 8) - Optional
  * Analyzes technical trends and chart patterns using API adapters
  * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5
- * API Integration: Uses Polygon for historical data, Alpha Vantage as fallback (Requirement 6.3)
+ * API Integration: Uses FMP (primary), Polygon, Alpha Vantage as fallbacks (Requirement 6.3)
  */
 export class TechnicalTrendsProcessor implements StepProcessor {
   stepId = 8;
@@ -24,21 +25,31 @@ export class TechnicalTrendsProcessor implements StepProcessor {
   isOptional = true; // Requirement 8.5: Mark as optional step
 
   private tradingViewAdapter: TradingViewAdapter;
+  private fmpAdapter: FinancialModelingPrepAdapter | null;
   private polygonAdapter: PolygonAdapter | null;
   private alphaVantageAdapter: AlphaVantageAdapter | null;
 
   constructor(
     tradingViewAdapter?: TradingViewAdapter,
+    fmpAdapter?: FinancialModelingPrepAdapter,
     polygonAdapter?: PolygonAdapter,
     alphaVantageAdapter?: AlphaVantageAdapter
   ) {
     this.tradingViewAdapter = tradingViewAdapter || new TradingViewAdapter();
     
+    // Initialize FMP adapter (primary source for historical data)
+    try {
+      this.fmpAdapter = fmpAdapter || new FinancialModelingPrepAdapter();
+    } catch {
+      console.warn("FMP adapter not configured, will use fallback sources");
+      this.fmpAdapter = null;
+    }
+    
     // Initialize API adapters with fallback to null if not configured
     // Requirement 6.3: Use Polygon adapter for historical price data
     try {
       this.polygonAdapter = polygonAdapter || new PolygonAdapter();
-    } catch (error) {
+    } catch {
       console.warn("Polygon adapter not configured, will use fallback sources");
       this.polygonAdapter = null;
     }
@@ -46,7 +57,7 @@ export class TechnicalTrendsProcessor implements StepProcessor {
     // Requirement 6.3: Use Alpha Vantage as fallback
     try {
       this.alphaVantageAdapter = alphaVantageAdapter || new AlphaVantageAdapter();
-    } catch (error) {
+    } catch {
       console.warn("Alpha Vantage adapter not configured, will use fallback sources");
       this.alphaVantageAdapter = null;
     }
@@ -109,11 +120,28 @@ export class TechnicalTrendsProcessor implements StepProcessor {
 
       // Requirement 6.3: Try to fetch historical data from API adapters first
       let historicalData: HistoricalData | null = null;
+      let fmpHistoricalData: FMPHistoricalData | null = null;
       
-      // Try Polygon adapter first for historical price data
-      if (this.polygonAdapter && this.polygonAdapter.isConfigured()) {
+      // Request 90 calendar days to ensure we get at least 50 trading days
+      // (weekends and holidays reduce actual trading days)
+      const calendarDays = 90;
+      
+      // Try FMP adapter first (primary source - already working)
+      if (this.fmpAdapter && this.fmpAdapter.isConfigured()) {
         try {
-          historicalData = await this.polygonAdapter.getDailyPrices(ticker, 60);
+          fmpHistoricalData = await this.fmpAdapter.getHistoricalPrices(ticker, calendarDays);
+          warnings.push(`Using Financial Modeling Prep API for ${ticker} historical data`);
+        } catch (error) {
+          warnings.push(
+            `FMP API failed: ${(error as Error).message}. Trying fallback sources...`
+          );
+        }
+      }
+      
+      // Fallback to Polygon adapter if FMP failed
+      if (!fmpHistoricalData && this.polygonAdapter && this.polygonAdapter.isConfigured()) {
+        try {
+          historicalData = await this.polygonAdapter.getDailyPrices(ticker, calendarDays);
           warnings.push(`Using Polygon.io API for ${ticker} historical data`);
         } catch (error) {
           warnings.push(
@@ -122,15 +150,14 @@ export class TechnicalTrendsProcessor implements StepProcessor {
         }
       }
 
-      // Fallback to Alpha Vantage if Polygon failed or not configured
-      // Note: Alpha Vantage doesn't have a direct historical data method in our adapter
-      // So we'll fall back to TradingView if both API sources fail
-      
       // Calculate technical signals from historical data or use TradingView
       let technicalSignals: TechnicalSignals;
       
-      if (historicalData && historicalData.bars.length > 0) {
-        // Calculate technical signals from API data
+      if (fmpHistoricalData && fmpHistoricalData.bars.length > 0) {
+        // Calculate technical signals from FMP data
+        technicalSignals = this.calculateTechnicalSignalsFromFMP(ticker, fmpHistoricalData);
+      } else if (historicalData && historicalData.bars.length > 0) {
+        // Calculate technical signals from Polygon data
         technicalSignals = this.calculateTechnicalSignals(ticker, historicalData);
       } else {
         // Fallback to TradingView
@@ -183,7 +210,59 @@ export class TechnicalTrendsProcessor implements StepProcessor {
   }
 
   /**
-   * Calculate technical signals from historical price data
+   * Calculate technical signals from FMP historical price data
+   * Requirements: 8.3, 8.4
+   * @param ticker - Stock ticker symbol
+   * @param historicalData - FMP Historical OHLCV data
+   * @returns Technical signals with trend and MA crossover
+   */
+  private calculateTechnicalSignalsFromFMP(
+    ticker: string,
+    historicalData: FMPHistoricalData
+  ): TechnicalSignals {
+    const bars = historicalData.bars;
+    
+    if (bars.length < 50) {
+      throw new Error(`Insufficient historical data for ${ticker} (need at least 50 days, got ${bars.length})`);
+    }
+
+    // Calculate 20-day and 50-day moving averages
+    const ma20 = this.calculateSMA(bars.slice(-20).map(b => b.close));
+    const ma50 = this.calculateSMA(bars.slice(-50).map(b => b.close));
+    const prevMa20 = this.calculateSMA(bars.slice(-21, -1).map(b => b.close));
+    const prevMa50 = this.calculateSMA(bars.slice(-51, -1).map(b => b.close));
+
+    // Determine trend based on moving averages
+    let trend: "upward" | "downward" | "sideways";
+    if (ma20 > ma50 && prevMa20 > prevMa50) {
+      trend = "upward";
+    } else if (ma20 < ma50 && prevMa20 < prevMa50) {
+      trend = "downward";
+    } else {
+      trend = "sideways";
+    }
+
+    // Detect moving average crossover
+    const maCross = (ma20 > ma50 && prevMa20 <= prevMa50) || 
+                    (ma20 < ma50 && prevMa20 >= prevMa50);
+
+    // Calculate RSI if we have enough data
+    let rsi: number | undefined;
+    if (bars.length >= 14) {
+      rsi = this.calculateRSI(bars.slice(-15).map(b => b.close), 14);
+    }
+
+    return {
+      ticker: ticker.toUpperCase(),
+      trend,
+      maCross,
+      rsi,
+      analyzedAt: new Date(),
+    };
+  }
+
+  /**
+   * Calculate technical signals from historical price data (Polygon format)
    * Requirements: 8.3, 8.4
    * @param ticker - Stock ticker symbol
    * @param historicalData - Historical OHLCV data
@@ -196,7 +275,7 @@ export class TechnicalTrendsProcessor implements StepProcessor {
     const bars = historicalData.bars;
     
     if (bars.length < 50) {
-      throw new Error(`Insufficient historical data for ${ticker} (need at least 50 days)`);
+      throw new Error(`Insufficient historical data for ${ticker} (need at least 50 days, got ${bars.length})`);
     }
 
     // Requirement 8.3: Determine price trend

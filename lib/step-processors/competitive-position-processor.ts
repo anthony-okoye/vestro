@@ -7,7 +7,7 @@ import {
   OutputSchema,
   WorkflowContext,
 } from "../types";
-import { ReutersAdapter } from "../data-adapters/reuters-adapter";
+import { FinancialModelingPrepAdapter } from "../data-adapters/fmp-adapter";
 import { YahooFinanceAdapter } from "../data-adapters/yahoo-finance-adapter";
 import { AnalysisEngine } from "../analysis-engine";
 
@@ -21,16 +21,21 @@ export class CompetitivePositionProcessor implements StepProcessor {
   stepName = "Competitive Position";
   isOptional = false;
 
-  private reutersAdapter: ReutersAdapter;
+  private fmpAdapter: FinancialModelingPrepAdapter | null;
   private yahooFinanceAdapter: YahooFinanceAdapter;
   private analysisEngine: AnalysisEngine;
 
   constructor(
-    reutersAdapter?: ReutersAdapter,
+    fmpAdapter?: FinancialModelingPrepAdapter | null,
     yahooFinanceAdapter?: YahooFinanceAdapter,
     analysisEngine?: AnalysisEngine
   ) {
-    this.reutersAdapter = reutersAdapter || new ReutersAdapter();
+    // FMP adapter may fail to initialize if API key is missing
+    try {
+      this.fmpAdapter = fmpAdapter !== undefined ? fmpAdapter : new FinancialModelingPrepAdapter();
+    } catch {
+      this.fmpAdapter = null;
+    }
     this.yahooFinanceAdapter = yahooFinanceAdapter || new YahooFinanceAdapter();
     this.analysisEngine = analysisEngine || new AnalysisEngine();
   }
@@ -79,23 +84,30 @@ export class CompetitivePositionProcessor implements StepProcessor {
       const ticker = inputs.ticker as string;
 
       // Fetch company profiles from multiple sources in parallel
-      // Requirements 6.1, 6.2
-      const [reutersResult, yahooResult] = await Promise.allSettled([
-        this.reutersAdapter.fetchCompanyProfile(ticker),
-        this.yahooFinanceAdapter.fetchCompanyProfile(ticker),
-      ]);
+      // Requirements 6.1, 6.2 - Using FMP (primary) and Yahoo Finance (fallback)
+      const fetchPromises: Promise<any>[] = [];
+      
+      // Only add FMP if adapter is available
+      if (this.fmpAdapter) {
+        fetchPromises.push(this.fmpAdapter.getCompanyProfile(ticker));
+      } else {
+        fetchPromises.push(Promise.reject(new Error("FMP adapter not configured")));
+      }
+      fetchPromises.push(this.yahooFinanceAdapter.fetchCompanyProfile(ticker));
 
-      // Requirement 6.1: Process Reuters profile
-      let reutersProfile: any = null;
-      if (reutersResult.status === "fulfilled") {
-        reutersProfile = reutersResult.value;
+      const [fmpResult, yahooResult] = await Promise.allSettled(fetchPromises);
+
+      // Requirement 6.1: Process FMP profile (primary source)
+      let fmpProfile: any = null;
+      if (fmpResult.status === "fulfilled") {
+        fmpProfile = fmpResult.value;
       } else {
         warnings.push(
-          `Failed to fetch Reuters profile: ${reutersResult.reason?.message || "Unknown error"}`
+          `Failed to fetch FMP profile: ${fmpResult.reason?.message || "Unknown error"}`
         );
       }
 
-      // Requirement 6.2: Process Yahoo Finance profile
+      // Requirement 6.2: Process Yahoo Finance profile (fallback)
       let yahooProfile: any = null;
       if (yahooResult.status === "fulfilled") {
         yahooProfile = yahooResult.value;
@@ -108,7 +120,7 @@ export class CompetitivePositionProcessor implements StepProcessor {
       // Merge profile data from both sources
       const companyProfile = this.mergeProfiles(
         ticker,
-        reutersProfile,
+        fmpProfile,
         yahooProfile
       );
 
@@ -152,30 +164,29 @@ export class CompetitivePositionProcessor implements StepProcessor {
    */
   private mergeProfiles(
     ticker: string,
-    reutersProfile: any,
+    fmpProfile: any,
     yahooProfile: any
   ): any {
-    if (!reutersProfile && !yahooProfile) {
+    if (!fmpProfile && !yahooProfile) {
       return null;
     }
 
-    // Prefer Reuters data, fallback to Yahoo Finance
+    // Prefer FMP data, fallback to Yahoo Finance
     return {
       ticker,
-      name: reutersProfile?.name || yahooProfile?.name || ticker,
-      sector: reutersProfile?.sector || yahooProfile?.sector || "Unknown",
-      industry: reutersProfile?.industry || yahooProfile?.industry || "Unknown",
+      name: fmpProfile?.name || yahooProfile?.name || ticker,
+      sector: fmpProfile?.sector || yahooProfile?.sector || "Unknown",
+      industry: fmpProfile?.industry || yahooProfile?.industry || "Unknown",
       description:
-        reutersProfile?.description ||
+        fmpProfile?.description ||
         yahooProfile?.description ||
-        reutersProfile?.businessSummary ||
         yahooProfile?.longBusinessSummary ||
         "",
-      website: reutersProfile?.website || yahooProfile?.website,
-      employees: reutersProfile?.employees || yahooProfile?.fullTimeEmployees,
-      marketCap: reutersProfile?.marketCap || yahooProfile?.marketCap,
+      website: fmpProfile?.website || yahooProfile?.website,
+      employees: fmpProfile?.employees || yahooProfile?.fullTimeEmployees || yahooProfile?.employees,
+      marketCap: fmpProfile?.marketCap || yahooProfile?.marketCap,
       // Patent information (if available)
-      patents: yahooProfile?.patents || reutersProfile?.patents,
+      patents: yahooProfile?.patents || fmpProfile?.patents,
       // Brand information (if available)
       brandValue: yahooProfile?.brandValue,
       brandRecognition: yahooProfile?.brandRecognition,

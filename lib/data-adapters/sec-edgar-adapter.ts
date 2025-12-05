@@ -31,6 +31,10 @@ export interface CompanyInfo {
  */
 export class SECEdgarAdapter extends BaseDataSourceAdapter {
   sourceName = "SEC EDGAR";
+  
+  // SEC uses different domains for different data
+  // company_tickers.json is on www.sec.gov, submissions are on data.sec.gov (base URL)
+  private readonly SEC_WWW_BASE = "https://www.sec.gov";
 
   constructor() {
     super("https://data.sec.gov", 10); // SEC rate limit: 10 requests per second
@@ -73,18 +77,26 @@ export class SECEdgarAdapter extends BaseDataSourceAdapter {
 
   /**
    * Search for company information by ticker or name
+   * Note: company_tickers.json is hosted on www.sec.gov, not data.sec.gov
    */
   async searchCompany(query: string): Promise<CompanyInfo[]> {
     try {
-      const request: DataRequest = {
-        endpoint: "/files/company_tickers.json",
+      // Fetch directly from www.sec.gov since company_tickers.json is hosted there
+      const url = `${this.SEC_WWW_BASE}/files/company_tickers.json`;
+      
+      const response = await fetch(url, {
         headers: {
           "User-Agent": "ResurrectionStockPicker research@example.com",
+          Accept: "application/json",
         },
-      };
+      });
 
-      const response = await this.fetch(request);
-      const companies = this.parseCompanySearch(response.data, query);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const companies = this.parseCompanySearch(data, query);
 
       return companies;
     } catch (error) {

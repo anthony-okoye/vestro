@@ -430,6 +430,11 @@ export class PolygonAdapter extends BaseDataSourceAdapter {
       apiKey: this.apiKey,
     });
 
+    // Debug logging
+    const maskedUrl = url.replace(/apiKey=[^&]+/, 'apiKey=***MASKED***');
+    console.log(`[${this.sourceName}] Fetching: ${maskedUrl}`);
+    console.log(`[${this.sourceName}] API Key present: ${!!this.apiKey}, length: ${this.apiKey?.length || 0}`);
+
     let response: Response;
     
     try {
@@ -513,6 +518,9 @@ export class PolygonAdapter extends BaseDataSourceAdapter {
       this.errorLogger.log(notFoundError, { endpoint: request.endpoint });
       throw notFoundError;
     }
+
+    // Debug: Log response summary
+    console.log(`[${this.sourceName}] Response status: ${data.status}, resultsCount: ${data.resultsCount || data.results?.length || 0}`);
 
     return {
       data,

@@ -55,6 +55,27 @@ export interface KeyMetrics {
 }
 
 /**
+ * Historical price bar data from FMP
+ */
+export interface FMPPriceBar {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+/**
+ * Historical price data response from FMP
+ */
+export interface FMPHistoricalData {
+  symbol: string;
+  bars: FMPPriceBar[];
+  source: string;
+}
+
+/**
  * Adapter for Financial Modeling Prep API
  * Fetches financial statements, company profiles, and valuation metrics
  * 
@@ -482,6 +503,102 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
     "fmp-key-metrics",
     { ...CACHE_CONFIG.VALUATION_DATA }
   );
+
+  /**
+   * Fetch historical daily price data for a symbol
+   * @param symbol - Stock ticker symbol (e.g., "AAPL")
+   * @param days - Number of days of historical data to fetch (default: 60)
+   * @returns Historical price data with OHLCV bars
+   */
+  async getHistoricalPrices(symbol: string, days: number = 60): Promise<FMPHistoricalData> {
+    return this.getHistoricalPricesCached(symbol, days);
+  }
+
+  /**
+   * Cached version of getHistoricalPrices
+   * Cache for 1 hour (prices update throughout the day)
+   */
+  private getHistoricalPricesCached = createCachedFetcher(
+    async (symbol: string, days: number): Promise<FMPHistoricalData> => {
+      try {
+        // Calculate date range
+        const toDate = new Date();
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - days);
+        
+        const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+        const request: DataRequest = {
+          endpoint: "/historical-price-eod/full",
+          params: {
+            symbol: symbol.toUpperCase(),
+            from: formatDate(fromDate),
+            to: formatDate(toDate),
+          },
+        };
+
+        const response = await this.fetch(request);
+        const historicalData = this.parseHistoricalPrices(response.data, symbol);
+
+        return historicalData;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Failed to fetch historical prices for ${symbol}: ${errorMessage}`
+        );
+      }
+    },
+    "fmp-historical-prices",
+    { ...CACHE_CONFIG.HISTORICAL_DATA } // Uses 1 day cache from config
+  );
+
+  /**
+   * Parse historical price data from FMP API response
+   * @param data - Raw API response data
+   * @param symbol - Stock ticker symbol
+   * @returns Parsed historical data
+   */
+  private parseHistoricalPrices(data: any, symbol: string): FMPHistoricalData {
+    // FMP returns historical data in different formats depending on endpoint
+    let prices: any[] = [];
+    
+    if (Array.isArray(data)) {
+      prices = data;
+    } else if (data.historical) {
+      prices = data.historical;
+    } else if (data.historicalStockList) {
+      prices = data.historicalStockList;
+    }
+
+    if (!prices || prices.length === 0) {
+      const error = new NotFoundError(
+        `No historical price data found for ${symbol}`,
+        this.sourceName
+      );
+      this.errorLogger.log(error, { symbol, endpoint: "historical-price-eod" });
+      throw error;
+    }
+
+    // Sort by date ascending (oldest first)
+    const sortedPrices = prices.sort((a: any, b: any) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    const bars: FMPPriceBar[] = sortedPrices.map((item: any) => ({
+      date: item.date,
+      open: item.open || item.adjOpen || 0,
+      high: item.high || item.adjHigh || 0,
+      low: item.low || item.adjLow || 0,
+      close: item.close || item.adjClose || 0,
+      volume: item.volume || 0,
+    }));
+
+    return {
+      symbol: symbol.toUpperCase(),
+      bars,
+      source: this.sourceName,
+    };
+  }
 
   /**
    * Parse company profile data from FMP API response
