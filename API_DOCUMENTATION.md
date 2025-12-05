@@ -7,10 +7,11 @@ Complete reference for the ResurrectionStockPicker API endpoints.
 1. [Overview](#overview)
 2. [Authentication](#authentication)
 3. [API Endpoints](#api-endpoints)
-4. [Data Models](#data-models)
-5. [Error Handling](#error-handling)
-6. [Rate Limiting](#rate-limiting)
-7. [Examples](#examples)
+4. [External Data Providers](#external-data-providers)
+5. [Data Models](#data-models)
+6. [Error Handling](#error-handling)
+7. [Rate Limiting](#rate-limiting)
+8. [Examples](#examples)
 
 ## Overview
 
@@ -423,6 +424,197 @@ interface StepData {
 ### Step-Specific Data Models
 
 See [design.md](./.kiro/specs/resurrection-stock-picker/design.md) for detailed data models for each workflow step.
+
+## External Data Providers
+
+The application integrates with several external financial data APIs to fetch market data, company fundamentals, and economic indicators.
+
+### Alpha Vantage
+
+**Purpose:** Stock quotes and company fundamentals
+
+**Base URL:** `https://www.alphavantage.co`
+
+**Endpoints Used:**
+
+| Endpoint | Description | Data Returned |
+|----------|-------------|---------------|
+| `GLOBAL_QUOTE` | Real-time stock quote | Price, change, volume, timestamp |
+| `OVERVIEW` | Company fundamentals | Market cap, PE ratio, dividend yield, beta, sector, industry |
+
+**Data Models:**
+
+```typescript
+interface StockQuote {
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  timestamp: Date;
+  source: string;
+}
+
+interface CompanyProfile {
+  symbol: string;
+  name: string;
+  description: string;
+  sector: string;
+  industry: string;
+  marketCap: number;
+  peRatio: number | null;
+  dividendYield: number | null;
+  beta: number | null;
+  source: string;
+}
+```
+
+**Rate Limits:** 5 requests/min (free), 75 requests/min (premium)
+
+**Environment Variable:** `ALPHA_VANTAGE_API_KEY`
+
+---
+
+### Financial Modeling Prep (FMP)
+
+**Purpose:** Financial statements and valuation metrics
+
+**Base URL:** `https://financialmodelingprep.com/api/v3`
+
+**Endpoints Used:**
+
+| Endpoint | Description | Data Returned |
+|----------|-------------|---------------|
+| `/income-statement/{symbol}` | Income statement | Revenue, net income, EPS |
+| `/balance-sheet-statement/{symbol}` | Balance sheet | Assets, liabilities, equity |
+| `/cash-flow-statement/{symbol}` | Cash flow | Operating, investing, financing cash flows |
+| `/profile/{symbol}` | Company profile | Sector, industry, description, market cap |
+| `/key-metrics/{symbol}` | Valuation ratios | PE, PB, ROE, debt-to-equity |
+
+**Data Models:**
+
+```typescript
+interface FinancialStatement {
+  symbol: string;
+  date: Date;
+  period: 'annual' | 'quarter';
+  revenue: number;
+  netIncome: number;
+  eps: number;
+  assets: number;
+  liabilities: number;
+  equity: number;
+  operatingCashFlow: number;
+  source: string;
+}
+
+interface KeyMetrics {
+  symbol: string;
+  date: Date;
+  peRatio: number | null;
+  pbRatio: number | null;
+  debtToEquity: number | null;
+  returnOnEquity: number | null;
+  dividendYield: number | null;
+  source: string;
+}
+```
+
+**Rate Limits:** 250 requests/day (free), 750-3000/day (paid)
+
+**Environment Variable:** `FMP_API_KEY`
+
+---
+
+### Polygon.io
+
+**Purpose:** Real-time and historical price data
+
+**Base URL:** `https://api.polygon.io`
+
+**Endpoints Used:**
+
+| Endpoint | Description | Data Returned |
+|----------|-------------|---------------|
+| `/v2/last/trade/{symbol}` | Last trade | Price, volume, timestamp |
+| `/v2/aggs/ticker/{symbol}/prev` | Previous close | OHLCV for previous day |
+| `/v2/aggs/ticker/{symbol}/range/{multiplier}/{timespan}/{from}/{to}` | Historical bars | OHLCV time series |
+
+**Data Models:**
+
+```typescript
+interface OHLCVBar {
+  timestamp: Date;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+interface HistoricalData {
+  symbol: string;
+  bars: OHLCVBar[];
+  source: string;
+}
+```
+
+**Rate Limits:** 5 requests/min (free), 100-1000/min (paid)
+
+**Environment Variable:** `POLYGON_API_KEY`
+
+---
+
+### Federal Reserve Economic Data (FRED)
+
+**Purpose:** Macroeconomic indicators
+
+**Base URL:** `https://api.stlouisfed.org/fred`
+
+**Endpoints Used:**
+
+| Endpoint | Description | Data Returned |
+|----------|-------------|---------------|
+| `/series/observations` | Time series data | Date, value pairs for economic series |
+
+**Common Series IDs:**
+
+| Series ID | Description |
+|-----------|-------------|
+| `FEDFUNDS` | Federal Funds Effective Rate |
+| `CPIAUCSL` | Consumer Price Index (for inflation) |
+| `UNRATE` | Unemployment Rate |
+| `GDP` | Gross Domestic Product |
+
+**Data Models:**
+
+```typescript
+interface EconomicData {
+  seriesId: string;
+  date: string;
+  value: number;
+  units?: string;
+}
+```
+
+**Rate Limits:** 120 requests/min
+
+**Environment Variable:** `FRED_API_KEY`
+
+---
+
+### Data Transformations
+
+All external API responses are transformed to standardized internal data models:
+
+1. **Numeric parsing:** Handles null, undefined, "-", and "None" values gracefully
+2. **Date normalization:** Converts various date formats to JavaScript Date objects
+3. **Source attribution:** Every response includes a `source` field identifying the provider
+4. **Caching:** Responses are cached to minimize API calls:
+   - Stock quotes: 15 minutes
+   - Company profiles: 7 days
+   - Financial statements: 24 hours
+   - Economic indicators: 1 hour
 
 ## Error Handling
 

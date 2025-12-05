@@ -1,4 +1,29 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+
+// Mock cache-config to bypass Next.js unstable_cache in tests
+vi.mock("../cache-config", () => ({
+  createCachedFetcher: <T extends (...args: any[]) => Promise<any>>(
+    fetcher: T,
+    _cacheKey: string,
+    _config: { revalidate: number; tags: string[] }
+  ): T => fetcher,
+  CACHE_CONFIG: {
+    STOCK_DATA: { revalidate: 300, tags: ["stock-data"] },
+    COMPANY_DATA: { revalidate: 3600, tags: ["company-data"] },
+    MACRO_DATA: { revalidate: 3600, tags: ["macro-data"] },
+    SECTOR_DATA: { revalidate: 1800, tags: ["sector-data"] },
+  },
+  CacheKeys: {
+    quote: (ticker: string) => `quote-${ticker}`,
+    companyProfile: (ticker: string) => `company-profile-${ticker}`,
+    sectorData: () => "sector-data",
+    interestRate: () => "interest-rate",
+    inflationRate: () => "inflation-rate",
+    unemploymentRate: () => "unemployment-rate",
+    screenStocks: (hash: string) => `screen-stocks-${hash}`,
+  },
+}));
+
 import { SECEdgarAdapter } from "../data-adapters/sec-edgar-adapter";
 import { YahooFinanceAdapter } from "../data-adapters/yahoo-finance-adapter";
 import { FinvizAdapter } from "../data-adapters/finviz-adapter";

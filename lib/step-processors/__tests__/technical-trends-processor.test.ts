@@ -140,7 +140,7 @@ describe("TechnicalTrendsProcessor", () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.errors).toContain("Failed to fetch technical signals: API unavailable");
+      expect(result.errors?.[0]).toMatch(/Failed to fetch technical signals from all sources/);
     });
 
     it("should handle indicator fetch failure gracefully", async () => {
