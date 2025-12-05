@@ -7,50 +7,50 @@ import { unstable_cache } from "next/cache";
 export const CACHE_CONFIG = {
   // Macro economic data - updates infrequently (1 hour)
   MACRO_DATA: {
-    revalidate: 3600, // 1 hour in seconds
-    tags: ["macro-data"],
+    revalidate: 3600 as number, // 1 hour in seconds
+    tags: ["macro-data"] as string[],
   },
   // Sector data - daily updates (24 hours)
   SECTOR_DATA: {
-    revalidate: 86400, // 24 hours in seconds
-    tags: ["sector-data"],
+    revalidate: 86400 as number, // 24 hours in seconds
+    tags: ["sector-data"] as string[],
   },
   // Stock quotes - frequent updates (15 minutes)
   QUOTES: {
-    revalidate: 900, // 15 minutes in seconds
-    tags: ["quotes"],
+    revalidate: 900 as number, // 15 minutes in seconds
+    tags: ["quotes"] as string[],
   },
   // Company profiles - rarely change (7 days)
   COMPANY_PROFILES: {
-    revalidate: 604800, // 7 days in seconds
-    tags: ["company-profiles"],
+    revalidate: 604800 as number, // 7 days in seconds
+    tags: ["company-profiles"] as string[],
   },
   // Financial filings - updates quarterly (1 day)
   FINANCIAL_FILINGS: {
-    revalidate: 86400, // 1 day in seconds
-    tags: ["financial-filings"],
+    revalidate: 86400 as number, // 1 day in seconds
+    tags: ["financial-filings"] as string[],
   },
   // Financial statements - updates quarterly (1 day)
   FINANCIAL_STATEMENTS: {
-    revalidate: 86400, // 1 day in seconds
-    tags: ["financial-statements"],
+    revalidate: 86400 as number, // 1 day in seconds
+    tags: ["financial-statements"] as string[],
   },
   // Analyst ratings - daily updates (1 day)
   ANALYST_RATINGS: {
-    revalidate: 86400, // 1 day in seconds
-    tags: ["analyst-ratings"],
+    revalidate: 86400 as number, // 1 day in seconds
+    tags: ["analyst-ratings"] as string[],
   },
   // Valuation data - daily updates (1 day)
   VALUATION_DATA: {
-    revalidate: 86400, // 1 day in seconds
-    tags: ["valuation-data"],
+    revalidate: 86400 as number, // 1 day in seconds
+    tags: ["valuation-data"] as string[],
   },
   // Historical price data - daily updates (1 day)
   HISTORICAL_DATA: {
-    revalidate: 86400, // 1 day in seconds
-    tags: ["historical-data"],
+    revalidate: 86400 as number, // 1 day in seconds
+    tags: ["historical-data"] as string[],
   },
-} as const;
+};
 
 /**
  * Create a cached version of a data fetching function
