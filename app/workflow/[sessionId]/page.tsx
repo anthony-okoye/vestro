@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import WorkflowProgress from '@/components/WorkflowProgress';
 import Link from 'next/link';
 
@@ -28,7 +27,6 @@ const STEP_NAMES = [
 
 export default function WorkflowPage({ params }: WorkflowPageProps) {
   const { sessionId } = params;
-  const router = useRouter();
   const [status, setStatus] = useState<any>(null);
   const [stepData, setStepData] = useState<any>({});
   const [loading, setLoading] = useState(true);
