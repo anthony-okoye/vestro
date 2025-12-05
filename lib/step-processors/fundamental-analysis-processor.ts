@@ -11,6 +11,7 @@ import {
 import { SECEdgarAdapter } from "../data-adapters/sec-edgar-adapter";
 import { MorningstarAdapter } from "../data-adapters/morningstar-adapter";
 import { FinancialModelingPrepAdapter } from "../data-adapters/fmp-adapter";
+import { YahooFinanceAdapter } from "../data-adapters/yahoo-finance-adapter";
 
 /**
  * FundamentalAnalysisProcessor (Step 5)
@@ -26,14 +27,17 @@ export class FundamentalAnalysisProcessor implements StepProcessor {
   private secEdgarAdapter: SECEdgarAdapter;
   private morningstarAdapter: MorningstarAdapter;
   private fmpAdapter: FinancialModelingPrepAdapter | null;
+  private yahooFinanceAdapter: YahooFinanceAdapter;
 
   constructor(
     secEdgarAdapter?: SECEdgarAdapter,
     morningstarAdapter?: MorningstarAdapter,
-    fmpAdapter?: FinancialModelingPrepAdapter
+    fmpAdapter?: FinancialModelingPrepAdapter,
+    yahooFinanceAdapter?: YahooFinanceAdapter
   ) {
     this.secEdgarAdapter = secEdgarAdapter || new SECEdgarAdapter();
     this.morningstarAdapter = morningstarAdapter || new MorningstarAdapter();
+    this.yahooFinanceAdapter = yahooFinanceAdapter || new YahooFinanceAdapter();
     
     // Initialize API adapters with fallback to null if not configured
     // Requirement 6.2: Use FMP adapter for financial statements
@@ -104,19 +108,29 @@ export class FundamentalAnalysisProcessor implements StepProcessor {
         }
       }
 
-      // Fallback to Morningstar if FMP failed or not configured
+      // Fallback to Yahoo Finance if FMP failed or not configured
       if (!fundamentals) {
         try {
-          fundamentals = await this.morningstarAdapter.fetchFundamentals(ticker);
-          warnings.push(`Using Morningstar (web scraping) for ${ticker}`);
-        } catch (error) {
-          errors.push(
-            `Failed to fetch fundamentals from all sources: ${(error as Error).message}`
+          fundamentals = await this.fetchFundamentalsFromYahoo(ticker);
+          warnings.push(`Using Yahoo Finance for ${ticker}`);
+        } catch (yahooError) {
+          warnings.push(
+            `Yahoo Finance failed: ${(yahooError as Error).message}. Trying Morningstar...`
           );
-          return {
-            success: false,
-            errors,
-          };
+          
+          // Final fallback to Morningstar
+          try {
+            fundamentals = await this.morningstarAdapter.fetchFundamentals(ticker);
+            warnings.push(`Using Morningstar (web scraping) for ${ticker}`);
+          } catch (error) {
+            errors.push(
+              `Failed to fetch fundamentals from all sources (FMP, Yahoo Finance, Morningstar): ${(error as Error).message}`
+            );
+            return {
+              success: false,
+              errors,
+            };
+          }
         }
       }
 
@@ -223,6 +237,24 @@ export class FundamentalAnalysisProcessor implements StepProcessor {
       profitMargin,
       debtToEquity,
       freeCashFlow,
+      analyzedAt: new Date(),
+    };
+  }
+
+  /**
+   * Fetch fundamentals from Yahoo Finance API
+   * Fallback source when FMP is not available
+   */
+  private async fetchFundamentalsFromYahoo(ticker: string): Promise<Fundamentals> {
+    const financialData = await this.yahooFinanceAdapter.fetchFinancialData(ticker);
+
+    return {
+      ticker: financialData.ticker,
+      revenueGrowth5y: financialData.revenueGrowth5y,
+      earningsGrowth5y: financialData.earningsGrowth5y,
+      profitMargin: financialData.profitMargin,
+      debtToEquity: financialData.debtToEquity,
+      freeCashFlow: financialData.freeCashFlow,
       analyzedAt: new Date(),
     };
   }

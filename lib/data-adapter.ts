@@ -185,7 +185,23 @@ export abstract class BaseDataSourceAdapter implements DataSourceAdapter {
    * Build full URL from endpoint and params
    */
   protected buildUrl(endpoint: string, params?: Record<string, any>): string {
-    const url = new URL(endpoint, this.baseUrl);
+    // Ensure baseUrl ends without trailing slash and endpoint handling is correct
+    let fullUrl: string;
+    
+    // If endpoint starts with /, we need to append it to baseUrl properly
+    // new URL("/path", "https://example.com/api") incorrectly gives "https://example.com/path"
+    // We want "https://example.com/api/path"
+    if (endpoint.startsWith('/')) {
+      // Remove trailing slash from baseUrl if present, then append endpoint
+      const base = this.baseUrl.endsWith('/') ? this.baseUrl.slice(0, -1) : this.baseUrl;
+      fullUrl = base + endpoint;
+    } else {
+      // For relative paths without leading slash, use URL constructor
+      const base = this.baseUrl.endsWith('/') ? this.baseUrl : this.baseUrl + '/';
+      fullUrl = base + endpoint;
+    }
+    
+    const url = new URL(fullUrl);
     
     if (params) {
       Object.entries(params).forEach(([key, value]) => {

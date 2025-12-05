@@ -77,7 +77,8 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
   constructor(apiKey?: string) {
     // FMP uses daily rate limits, so we set a high per-minute limit
     // The actual limiting is done by tracking daily requests
-    super("https://financialmodelingprep.com/api/v3", 250);
+    // Using the stable API endpoint which is the current recommended API
+    super("https://financialmodelingprep.com/stable", 250);
     
     this.apiKey = apiKey || process.env.FMP_API_KEY || "";
     
@@ -163,9 +164,11 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
   private getIncomeStatementCached = createCachedFetcher(
     async (symbol: string, period: 'annual' | 'quarter', limit: number): Promise<FinancialStatement[]> => {
       try {
+        // FMP stable API uses symbol as query parameter
         const request: DataRequest = {
-          endpoint: "/income-statement/" + symbol.toUpperCase(),
+          endpoint: "/income-statement",
           params: {
+            symbol: symbol.toUpperCase(),
             period,
             limit,
           },
@@ -208,9 +211,11 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
   private getBalanceSheetCached = createCachedFetcher(
     async (symbol: string, period: 'annual' | 'quarter', limit: number): Promise<FinancialStatement[]> => {
       try {
+        // FMP stable API uses symbol as query parameter
         const request: DataRequest = {
-          endpoint: "/balance-sheet-statement/" + symbol.toUpperCase(),
+          endpoint: "/balance-sheet-statement",
           params: {
+            symbol: symbol.toUpperCase(),
             period,
             limit,
           },
@@ -253,9 +258,11 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
   private getCashFlowStatementCached = createCachedFetcher(
     async (symbol: string, period: 'annual' | 'quarter', limit: number): Promise<FinancialStatement[]> => {
       try {
+        // FMP stable API uses symbol as query parameter
         const request: DataRequest = {
-          endpoint: "/cash-flow-statement/" + symbol.toUpperCase(),
+          endpoint: "/cash-flow-statement",
           params: {
+            symbol: symbol.toUpperCase(),
             period,
             limit,
           },
@@ -406,9 +413,12 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
   private getCompanyProfileCached = createCachedFetcher(
     async (symbol: string): Promise<FMPCompanyProfile> => {
       try {
+        // FMP stable API uses symbol as query parameter
         const request: DataRequest = {
-          endpoint: "/profile/" + symbol.toUpperCase(),
-          params: {},
+          endpoint: "/profile",
+          params: {
+            symbol: symbol.toUpperCase(),
+          },
         };
 
         const response = await this.fetch(request);
@@ -448,9 +458,11 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
   private getKeyMetricsCached = createCachedFetcher(
     async (symbol: string, period: 'annual' | 'quarter', limit: number): Promise<KeyMetrics[]> => {
       try {
+        // FMP stable API uses symbol as query parameter
         const request: DataRequest = {
-          endpoint: "/key-metrics/" + symbol.toUpperCase(),
+          endpoint: "/key-metrics",
           params: {
+            symbol: symbol.toUpperCase(),
             period,
             limit,
           },
@@ -559,6 +571,11 @@ export class FinancialModelingPrepAdapter extends BaseDataSourceAdapter {
       ...request.params,
       apikey: this.apiKey,
     });
+
+    // Debug: Log the URL being called (mask API key for security)
+    const maskedUrl = url.replace(/apikey=[^&]+/, 'apikey=***MASKED***');
+    console.log(`[${this.sourceName}] Fetching: ${maskedUrl}`);
+    console.log(`[${this.sourceName}] API Key present: ${!!this.apiKey}, length: ${this.apiKey?.length || 0}`);
 
     let response: Response;
     

@@ -271,6 +271,11 @@ export class FederalReserveAdapter extends BaseDataSourceAdapter {
   protected async performFetch(request: DataRequest): Promise<DataResponse> {
     const url = this.buildUrl(request.endpoint, request.params);
 
+    // Debug: Log the URL being called (mask API key for security)
+    const maskedUrl = url.replace(/api_key=[^&]+/, 'api_key=***MASKED***');
+    console.log(`[${this.sourceName}] Fetching: ${maskedUrl}`);
+    console.log(`[${this.sourceName}] API Key present: ${!!this.apiKey}, length: ${this.apiKey?.length || 0}`);
+
     let response: Response;
     
     try {
