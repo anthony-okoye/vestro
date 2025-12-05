@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { z } from 'zod';
+import { useHorror } from './horror/HorrorProvider';
+import GlitchText from './horror/GlitchText';
+import HorrorButton from './horror/HorrorButton';
 
 const profileSchema = z.object({
   riskTolerance: z.enum(['low', 'medium', 'high'], {
@@ -30,19 +33,21 @@ export default function ProfileForm({ userId, onSuccess }: ProfileFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const { triggerGlitch, triggerJumpscare } = useHorror();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
     setSubmitError(null);
 
-    // Validate form data
     try {
       const validatedData = profileSchema.parse(formData);
-
       setIsSubmitting(true);
+      
+      // Creepy glitch on submit
+      triggerGlitch();
 
-      // Create workflow session
       const workflowRes = await fetch('/api/workflows', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -55,23 +60,20 @@ export default function ProfileForm({ userId, onSuccess }: ProfileFormProps) {
 
       const { sessionId } = await workflowRes.json();
 
-      // Execute Step 1 with profile data
-      console.log('Sending profile data:', validatedData);
       const stepRes = await fetch(`/api/workflows/${sessionId}/steps/1`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inputs: validatedData })
       });
 
-      console.log('Step response status:', stepRes.status);
       const stepData = await stepRes.json();
-      console.log('Step response data:', stepData);
 
       if (!stepRes.ok) {
+        // Error = jumpscare!
+        triggerJumpscare();
         throw new Error(stepData.errors?.join(', ') || 'Failed to save profile');
       }
 
-      // Call success callback
       if (onSuccess) {
         onSuccess(sessionId);
       }
@@ -84,6 +86,7 @@ export default function ProfileForm({ userId, onSuccess }: ProfileFormProps) {
           }
         });
         setErrors(fieldErrors);
+        triggerGlitch();
       } else {
         setSubmitError(error instanceof Error ? error.message : 'An error occurred');
       }
@@ -94,111 +97,183 @@ export default function ProfileForm({ userId, onSuccess }: ProfileFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <div className="text-5xl mb-4 animate-pulse filter drop-shadow-[0_0_10px_rgba(255,0,0,0.5)]">
+          👻
+        </div>
+        <h2 className="text-2xl font-bold mb-2">
+          <GlitchText intensity={3}>Summon Your Profile</GlitchText>
+        </h2>
+        <p className="text-sm text-gray-500">Configure your investment spirit guide</p>
+      </div>
+
       {submitError && (
-        <div className="bg-red-50 border-2 border-red-600 p-4">
-          <p className="text-sm text-red-900 font-bold">Error</p>
-          <p className="text-xs text-red-800">{submitError}</p>
+        <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4 animate-pulse">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">💀</span>
+            <div>
+              <p className="font-semibold text-red-400">
+                <GlitchText intensity={7}>Ritual Failed</GlitchText>
+              </p>
+              <p className="text-sm text-red-300/80">{submitError}</p>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Risk Tolerance */}
-      <div>
-        <label className="form-label">
-          Risk Tolerance
+      <div className={`transition-all duration-300 ${focusedField === 'risk' ? 'scale-[1.02]' : ''}`}>
+        <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          🩸 Risk Tolerance
         </label>
         <select
-          className="form-input"
+          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg text-gray-200 
+                     focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none
+                     transition-all duration-200 cursor-pointer appearance-none"
           value={formData.riskTolerance || ''}
-          onChange={(e) => setFormData({ ...formData, riskTolerance: e.target.value as any })}
+          onChange={(e) => setFormData({ ...formData, riskTolerance: e.target.value as ProfileFormData['riskTolerance'] })}
+          onFocus={() => setFocusedField('risk')}
+          onBlur={() => setFocusedField(null)}
         >
-          <option value="">Select risk tolerance...</option>
-          <option value="low">Low - Conservative approach</option>
-          <option value="medium">Medium - Balanced approach</option>
-          <option value="high">High - Aggressive approach</option>
+          <option value="">Select your risk appetite...</option>
+          <option value="low">🛡️ Low - Conservative, steady approach</option>
+          <option value="medium">⚖️ Medium - Balanced risk/reward</option>
+          <option value="high">🔥 High - Aggressive growth focus</option>
         </select>
         {errors.riskTolerance && (
-          <p className="text-xs text-red-600 mt-1">{errors.riskTolerance}</p>
+          <p className="text-sm text-red-400 mt-2 flex items-center gap-1">
+            <span>💀</span> {errors.riskTolerance}
+          </p>
         )}
       </div>
 
       {/* Investment Horizon */}
-      <div>
-        <label className="form-label">
-          Investment Horizon (Years)
+      <div className={`transition-all duration-300 ${focusedField === 'horizon' ? 'scale-[1.02]' : ''}`}>
+        <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          ⏳ Investment Horizon (Years)
         </label>
         <input
           type="number"
-          className="form-input"
-          placeholder="e.g., 10"
+          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg text-gray-200 
+                     focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none
+                     transition-all duration-200 placeholder-gray-600"
+          placeholder="How long will you haunt these investments?"
           min="1"
           value={formData.investmentHorizonYears || ''}
           onChange={(e) => setFormData({ 
             ...formData, 
             investmentHorizonYears: e.target.value ? parseInt(e.target.value) : undefined 
           })}
+          onFocus={() => setFocusedField('horizon')}
+          onBlur={() => setFocusedField(null)}
         />
         {errors.investmentHorizonYears && (
-          <p className="text-xs text-red-600 mt-1">{errors.investmentHorizonYears}</p>
+          <p className="text-sm text-red-400 mt-2 flex items-center gap-1">
+            <span>💀</span> {errors.investmentHorizonYears}
+          </p>
         )}
-        <p className="text-xs text-gray-600 mt-1">
-          How many years do you plan to hold these investments?
-        </p>
       </div>
 
       {/* Capital Available */}
-      <div>
-        <label className="form-label">
-          Capital Available ($)
+      <div className={`transition-all duration-300 ${focusedField === 'capital' ? 'scale-[1.02]' : ''}`}>
+        <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          💎 Capital Available
         </label>
-        <input
-          type="number"
-          className="form-input"
-          placeholder="e.g., 50000"
-          min="0"
-          step="0.01"
-          value={formData.capitalAvailable || ''}
-          onChange={(e) => setFormData({ 
-            ...formData, 
-            capitalAvailable: e.target.value ? parseFloat(e.target.value) : undefined 
-          })}
-        />
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-mono">$</span>
+          <input
+            type="number"
+            className="w-full pl-8 pr-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg text-gray-200 
+                       focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none
+                       transition-all duration-200 placeholder-gray-600"
+            placeholder="Your treasure chest amount"
+            min="0"
+            step="0.01"
+            value={formData.capitalAvailable || ''}
+            onChange={(e) => setFormData({ 
+              ...formData, 
+              capitalAvailable: e.target.value ? parseFloat(e.target.value) : undefined 
+            })}
+            onFocus={() => setFocusedField('capital')}
+            onBlur={() => setFocusedField(null)}
+          />
+        </div>
         {errors.capitalAvailable && (
-          <p className="text-xs text-red-600 mt-1">{errors.capitalAvailable}</p>
+          <p className="text-sm text-red-400 mt-2 flex items-center gap-1">
+            <span>💀</span> {errors.capitalAvailable}
+          </p>
         )}
-        <p className="text-xs text-gray-600 mt-1">
-          Total amount you plan to invest
-        </p>
       </div>
 
       {/* Long-term Goals */}
-      <div>
-        <label className="form-label">
-          Investment Goals
+      <div className={`transition-all duration-300 ${focusedField === 'goals' ? 'scale-[1.02]' : ''}`}>
+        <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          🎯 Investment Goals
         </label>
         <select
-          className="form-input"
+          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg text-gray-200 
+                     focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none
+                     transition-all duration-200 cursor-pointer appearance-none"
           value={formData.longTermGoals || ''}
-          onChange={(e) => setFormData({ ...formData, longTermGoals: e.target.value as any })}
+          onChange={(e) => setFormData({ ...formData, longTermGoals: e.target.value as ProfileFormData['longTermGoals'] })}
+          onFocus={() => setFocusedField('goals')}
+          onBlur={() => setFocusedField(null)}
         >
-          <option value="">Select your primary goal...</option>
-          <option value="steady growth">Steady Growth - Long-term appreciation</option>
-          <option value="dividend income">Dividend Income - Regular cash flow</option>
-          <option value="capital preservation">Capital Preservation - Protect principal</option>
+          <option value="">Choose your destiny...</option>
+          <option value="steady growth">📈 Steady Growth - Long-term appreciation</option>
+          <option value="dividend income">💰 Dividend Income - Regular cash flow</option>
+          <option value="capital preservation">🏦 Capital Preservation - Protect principal</option>
         </select>
         {errors.longTermGoals && (
-          <p className="text-xs text-red-600 mt-1">{errors.longTermGoals}</p>
+          <p className="text-sm text-red-400 mt-2 flex items-center gap-1">
+            <span>💀</span> {errors.longTermGoals}
+          </p>
         )}
       </div>
 
       {/* Submit Button */}
-      <div className="pt-4">
-        <button
+      <div className="pt-6">
+        <HorrorButton
           type="submit"
+          variant="primary"
           disabled={isSubmitting}
-          className="btn-success w-full disabled:opacity-50 disabled:cursor-not-allowed"
+          scareChance={0.2}
+          className="w-full py-4 text-lg"
         >
-          {isSubmitting ? 'Creating Workflow...' : 'Start Investment Research'}
-        </button>
+          {isSubmitting ? (
+            <span className="flex items-center justify-center gap-3">
+              <span className="animate-spin">🌀</span>
+              <GlitchText intensity={5}>Summoning Workflow...</GlitchText>
+            </span>
+          ) : (
+            <span className="flex items-center justify-center gap-3">
+              <span>👻</span>
+              Begin the Resurrection
+              <span>✨</span>
+            </span>
+          )}
+        </HorrorButton>
+      </div>
+
+      {/* Progress indicator */}
+      <div className="flex justify-center gap-2 pt-4">
+        {['risk', 'horizon', 'capital', 'goals'].map((field, i) => {
+          const isComplete = field === 'risk' ? !!formData.riskTolerance :
+                            field === 'horizon' ? !!formData.investmentHorizonYears :
+                            field === 'capital' ? !!formData.capitalAvailable :
+                            !!formData.longTermGoals;
+          return (
+            <div
+              key={field}
+              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                isComplete 
+                  ? 'bg-green-500 shadow-lg shadow-green-500/50' 
+                  : 'bg-gray-700'
+              }`}
+            />
+          );
+        })}
       </div>
     </form>
   );

@@ -1,0 +1,355 @@
+/* ============================================
+   HORROR ANIMATIONS & EFFECTS
+   ============================================ */
+
+/* Jumpscare Animation */
+@keyframes jumpscare {
+  0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+  20% { transform: scale(2) rotate(5deg); opacity: 1; }
+  40% { transform: scale(1.8) rotate(-3deg); opacity: 1; }
+  60% { transform: scale(2.2) rotate(2deg); opacity: 1; }
+  80% { transform: scale(1.5) rotate(-5deg); opacity: 0.8; }
+  100% { transform: scale(0) rotate(10deg); opacity: 0; }
+}
+
+.animate-jumpscare {
+  animation: jumpscare 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+/* Screen Shake */
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-10px, -5px) rotate(-1deg); }
+  20% { transform: translate(10px, 5px) rotate(1deg); }
+  30% { transform: translate(-10px, 5px) rotate(0deg); }
+  40% { transform: translate(10px, -5px) rotate(1deg); }
+  50% { transform: translate(-5px, 10px) rotate(-1deg); }
+  60% { transform: translate(5px, -10px) rotate(0deg); }
+  70% { transform: translate(-10px, 5px) rotate(-1deg); }
+  80% { transform: translate(10px, -5px) rotate(1deg); }
+  90% { transform: translate(-5px, -5px) rotate(0deg); }
+}
+
+.horror-shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Red Flash */
+@keyframes flash {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.animate-flash {
+  animation: flash 0.15s ease-out 3;
+}
+
+
+/* Flicker Effect */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.1; }
+}
+
+.horror-flicker {
+  animation: flicker 0.1s ease-in-out;
+}
+
+/* VHS Scanlines */
+.bg-scanlines {
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+}
+
+/* Static Noise */
+@keyframes noise {
+  0%, 100% { background-position: 0 0; }
+  10% { background-position: -5% -10%; }
+  20% { background-position: -15% 5%; }
+  30% { background-position: 7% -25%; }
+  40% { background-position: 20% 25%; }
+  50% { background-position: -25% 10%; }
+  60% { background-position: 15% 5%; }
+  70% { background-position: 0% 15%; }
+  80% { background-position: 25% 35%; }
+  90% { background-position: -10% 10%; }
+}
+
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+.animate-noise {
+  animation: noise 0.2s steps(10) infinite;
+}
+
+/* RGB Split Glitch */
+.glitch-rgb::before,
+.glitch-rgb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: inherit;
+}
+
+.glitch-rgb::before {
+  left: 2px;
+  text-shadow: -2px 0 red;
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+  animation: glitch-anim 0.3s infinite linear alternate-reverse;
+}
+
+.glitch-rgb::after {
+  left: -2px;
+  text-shadow: 2px 0 cyan;
+  clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
+  animation: glitch-anim 0.3s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-anim {
+  0% { clip-path: polygon(0 20%, 100% 20%, 100% 21%, 0 21%); }
+  20% { clip-path: polygon(0 33%, 100% 33%, 100% 35%, 0 35%); }
+  40% { clip-path: polygon(0 63%, 100% 63%, 100% 65%, 0 65%); }
+  60% { clip-path: polygon(0 80%, 100% 80%, 100% 83%, 0 83%); }
+  80% { clip-path: polygon(0 90%, 100% 90%, 100% 95%, 0 95%); }
+  100% { clip-path: polygon(0 5%, 100% 5%, 100% 10%, 0 10%); }
+}
+
+
+/* Fog Layers */
+.fog-layer-1 {
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(20, 20, 30, 0.3) 20%,
+    rgba(20, 20, 30, 0.1) 40%,
+    transparent 60%,
+    rgba(20, 20, 30, 0.2) 80%,
+    transparent 100%
+  );
+  animation: fog-drift-1 30s linear infinite;
+}
+
+.fog-layer-2 {
+  background: linear-gradient(
+    to left,
+    transparent 0%,
+    rgba(30, 20, 40, 0.2) 30%,
+    transparent 50%,
+    rgba(30, 20, 40, 0.3) 70%,
+    transparent 100%
+  );
+  animation: fog-drift-2 40s linear infinite;
+}
+
+@keyframes fog-drift-1 {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes fog-drift-2 {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+/* Vignette */
+.bg-radial-vignette {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    transparent 40%,
+    rgba(0, 0, 0, 0.3) 80%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+}
+
+/* Shadow Figure */
+.shadow-figure {
+  width: 60px;
+  height: 150px;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.6) 0%,
+    rgba(0, 0, 0, 0.4) 30%,
+    rgba(0, 0, 0, 0.2) 70%,
+    transparent 100%
+  );
+  border-radius: 30px 30px 0 0;
+  filter: blur(3px);
+  animation: shadow-drift 20s ease-in-out infinite;
+  opacity: 0;
+}
+
+@keyframes shadow-drift {
+  0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+  10% { opacity: 0.4; }
+  50% { transform: translateY(30vh) translateX(50px); opacity: 0.3; }
+  90% { opacity: 0.4; }
+  100% { transform: translateY(-20vh) translateX(-30px); opacity: 0; }
+}
+
+/* Ghost Appear */
+@keyframes ghost-appear {
+  0% { transform: scale(0.5); opacity: 0; filter: blur(10px); }
+  50% { transform: scale(1.2); opacity: 0.8; filter: blur(0); }
+  100% { transform: scale(1); opacity: 0; filter: blur(5px); }
+}
+
+.animate-ghost-appear {
+  animation: ghost-appear 0.5s ease-out forwards;
+}
+
+
+/* Peek Animation */
+@keyframes peek {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.animate-peek {
+  animation: peek 2s ease-in-out infinite;
+}
+
+/* Glitch Text Effect */
+.glitch-text {
+  position: relative;
+  animation: glitch-skew 1s infinite linear alternate-reverse;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.glitch-text::before {
+  left: 2px;
+  text-shadow: -2px 0 #ff0000;
+  clip: rect(44px, 450px, 56px, 0);
+  animation: glitch-anim 5s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+  left: -2px;
+  text-shadow: -2px 0 #00ffff;
+  clip: rect(44px, 450px, 56px, 0);
+  animation: glitch-anim2 5s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-skew {
+  0% { transform: skew(0deg); }
+  20% { transform: skew(0deg); }
+  21% { transform: skew(2deg); }
+  22% { transform: skew(0deg); }
+  80% { transform: skew(0deg); }
+  81% { transform: skew(-1deg); }
+  82% { transform: skew(0deg); }
+  100% { transform: skew(0deg); }
+}
+
+@keyframes glitch-anim2 {
+  0% { clip: rect(65px, 9999px, 119px, 0); }
+  5% { clip: rect(15px, 9999px, 72px, 0); }
+  10% { clip: rect(8px, 9999px, 55px, 0); }
+  15% { clip: rect(32px, 9999px, 98px, 0); }
+  20% { clip: rect(45px, 9999px, 82px, 0); }
+  25% { clip: rect(12px, 9999px, 67px, 0); }
+  30% { clip: rect(78px, 9999px, 115px, 0); }
+  35% { clip: rect(23px, 9999px, 89px, 0); }
+  40% { clip: rect(56px, 9999px, 102px, 0); }
+  45% { clip: rect(3px, 9999px, 48px, 0); }
+  50% { clip: rect(91px, 9999px, 125px, 0); }
+  55% { clip: rect(18px, 9999px, 76px, 0); }
+  60% { clip: rect(42px, 9999px, 95px, 0); }
+  65% { clip: rect(7px, 9999px, 61px, 0); }
+  70% { clip: rect(85px, 9999px, 118px, 0); }
+  75% { clip: rect(28px, 9999px, 84px, 0); }
+  80% { clip: rect(52px, 9999px, 107px, 0); }
+  85% { clip: rect(14px, 9999px, 69px, 0); }
+  90% { clip: rect(73px, 9999px, 112px, 0); }
+  95% { clip: rect(36px, 9999px, 92px, 0); }
+  100% { clip: rect(61px, 9999px, 104px, 0); }
+}
+
+/* Possession Effect */
+.possessed {
+  animation: possession 0.5s ease-in-out infinite;
+  filter: hue-rotate(180deg) saturate(2);
+}
+
+@keyframes possession {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.02) skewX(1deg); }
+  50% { transform: scale(0.98) skewX(-1deg); }
+  75% { transform: scale(1.01) skewY(1deg); }
+}
+
+/* Horror Possessed - for option cards */
+.horror-possessed {
+  animation: horror-possession 0.5s ease-in-out;
+}
+
+@keyframes horror-possession {
+  0% { transform: scale(1) rotate(0deg); filter: none; }
+  20% { transform: scale(1.05) rotate(-1deg); filter: hue-rotate(30deg) brightness(1.2); }
+  40% { transform: scale(0.98) rotate(1deg); filter: hue-rotate(-30deg) brightness(0.9); }
+  60% { transform: scale(1.03) rotate(-0.5deg); filter: hue-rotate(60deg) saturate(1.5); }
+  80% { transform: scale(0.99) rotate(0.5deg); filter: hue-rotate(-15deg) brightness(1.1); }
+  100% { transform: scale(1) rotate(0deg); filter: none; }
+}
+
+/* Minor shake for validation errors */
+.horror-minor-shake {
+  animation: minor-shake 0.2s ease-in-out;
+}
+
+@keyframes minor-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  50% { transform: translateX(3px); }
+  75% { transform: translateX(-2px); }
+}
+
+/* Global Glitch Active State */
+.horror-glitch-active {
+  animation: global-glitch 0.3s ease-in-out;
+}
+
+@keyframes global-glitch {
+  0% { filter: none; transform: translate(0); }
+  20% { filter: hue-rotate(90deg); transform: translate(-2px, 2px); }
+  40% { filter: invert(1); transform: translate(2px, -2px); }
+  60% { filter: hue-rotate(180deg); transform: translate(-1px, -1px); }
+  80% { filter: saturate(3); transform: translate(1px, 1px); }
+  100% { filter: none; transform: translate(0); }
+}
+
+/* Creepy Cursor */
+body.horror-mode {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='%23ff0000' stroke-width='2' opacity='0.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23ff0000'/%3E%3C/svg%3E"), auto;
+}
+
+/* Blood Drip Effect */
+@keyframes blood-drip {
+  0% { height: 0; opacity: 1; }
+  70% { height: 100px; opacity: 1; }
+  100% { height: 120px; opacity: 0; }
+}
+
+.blood-drip {
+  position: absolute;
+  width: 8px;
+  background: linear-gradient(to bottom, #8b0000, #ff0000);
+  border-radius: 0 0 4px 4px;
+  animation: blood-drip 3s ease-in forwards;
+}

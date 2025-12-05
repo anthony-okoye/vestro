@@ -2,82 +2,319 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Legacy-style dashboard aesthetics */
+/* ============================================
+   HAUNTED STOCK PICKER - HORROR THEME
+   ============================================ */
+
+:root {
+  --horror-bg-primary: #050508;
+  --horror-bg-secondary: #0a0a10;
+  --horror-bg-card: #0f0f18;
+  --horror-bg-elevated: #151520;
+  
+  --horror-blood: #8b0000;
+  --horror-blood-bright: #cc0000;
+  --horror-ghost: rgba(200, 200, 220, 0.1);
+  --horror-purple: #4a1a6b;
+  --horror-green: #1a4a2e;
+  
+  --horror-text: #c8c8d0;
+  --horror-text-dim: #6b6b7b;
+  --horror-border: #1a1a28;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
 @layer base {
+  html {
+    color-scheme: dark;
+  }
+  
   body {
-    @apply bg-gray-100 text-gray-900;
-    font-family: 'Courier New', Courier, monospace;
+    background: var(--horror-bg-primary);
+    color: var(--horror-text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+  }
+  
+  /* Creepy ambient background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 10% 90%, rgba(139, 0, 0, 0.08) 0%, transparent 40%),
+      radial-gradient(ellipse at 90% 10%, rgba(74, 26, 107, 0.06) 0%, transparent 40%),
+      radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: -1;
   }
   
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Arial', sans-serif;
-    font-weight: bold;
+    font-weight: 700;
+    color: var(--horror-text);
+  }
+  
+  ::selection {
+    background: rgba(139, 0, 0, 0.4);
+    color: white;
   }
 }
 
+
+/* ============================================
+   COMPONENT STYLES
+   ============================================ */
+
 @layer components {
-  /* Classic bordered panels */
   .panel {
-    @apply bg-white border-2 border-gray-800 shadow-lg p-6;
+    background: var(--horror-bg-card);
+    border: 1px solid var(--horror-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    position: relative;
+    transition: all 0.3s ease;
+  }
+  
+  .panel:hover {
+    border-color: rgba(139, 0, 0, 0.3);
+    box-shadow: 0 0 30px rgba(139, 0, 0, 0.1);
   }
   
   .panel-header {
-    @apply text-xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-gray-300;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--horror-border);
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply px-6 py-3 font-semibold rounded-lg transition-all duration-200;
+    background: linear-gradient(135deg, #4a1a6b, #2d1040);
+    color: white;
+    border: 1px solid rgba(139, 0, 0, 0.3);
   }
   
-  /* Legacy button styles */
-  .btn-primary {
-    @apply px-6 py-3 bg-blue-600 border-2 border-blue-800 text-white font-bold hover:bg-blue-700 transition-colors;
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(139, 0, 0, 0.3);
   }
   
   .btn-secondary {
-    @apply px-6 py-3 bg-white border-2 border-gray-800 text-gray-900 font-bold hover:bg-gray-100 transition-colors;
+    @apply px-6 py-3 font-semibold rounded-lg transition-all duration-200;
+    background: var(--horror-bg-elevated);
+    color: var(--horror-text);
+    border: 1px solid var(--horror-border);
+  }
+  
+  .btn-secondary:hover {
+    border-color: rgba(139, 0, 0, 0.4);
   }
   
   .btn-success {
-    @apply px-6 py-3 bg-green-600 border-2 border-green-800 text-white font-bold hover:bg-green-700 transition-colors;
+    @apply px-6 py-3 font-semibold rounded-lg transition-all duration-200;
+    background: linear-gradient(135deg, #1a4a2e, #0d2818);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.3);
   }
   
   .btn-danger {
-    @apply px-6 py-3 bg-red-600 border-2 border-red-800 text-white font-bold hover:bg-red-700 transition-colors;
+    @apply px-6 py-3 font-semibold rounded-lg transition-all duration-200;
+    background: linear-gradient(135deg, #8b0000, #4a0000);
+    color: white;
+    border: 1px solid rgba(139, 0, 0, 0.5);
   }
-  
-  /* Classic table styles */
-  .data-table {
-    @apply w-full border-2 border-gray-800;
-  }
-  
-  .data-table th {
-    @apply bg-gray-800 text-white font-bold p-3 text-left border-b-2 border-gray-900;
-  }
-  
-  .data-table td {
-    @apply p-3 border-b border-gray-300 bg-white;
-  }
-  
-  .data-table tr:hover td {
-    @apply bg-gray-50;
-  }
-  
-  /* Classic form inputs */
+
+  /* Form Inputs */
   .form-input {
-    @apply w-full px-3 py-2 border-2 border-gray-800 bg-white text-gray-900 focus:outline-none focus:border-blue-600;
+    @apply w-full px-4 py-3 rounded-lg transition-all duration-200;
+    background: var(--horror-bg-secondary);
+    color: var(--horror-text);
+    border: 1px solid var(--horror-border);
+  }
+  
+  .form-input::placeholder {
+    color: var(--horror-text-dim);
+  }
+  
+  .form-input:focus {
+    outline: none;
+    border-color: rgba(139, 0, 0, 0.5);
+    box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1);
   }
   
   .form-label {
-    @apply block text-sm font-bold text-gray-900 mb-2;
+    @apply block text-xs font-semibold mb-2 uppercase tracking-wider;
+    color: var(--horror-text-dim);
+  }
+
+  /* Tables */
+  .data-table {
+    @apply w-full;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--horror-border);
   }
   
-  /* Metric display */
+  .data-table th {
+    background: var(--horror-bg-elevated);
+    color: var(--horror-text-dim);
+    font-weight: 600;
+    padding: 1rem;
+    text-align: left;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+  
+  .data-table td {
+    padding: 1rem;
+    background: var(--horror-bg-card);
+    border-bottom: 1px solid var(--horror-border);
+  }
+  
+  .data-table tr:hover td {
+    background: var(--horror-bg-elevated);
+  }
+
+  /* Metric Cards */
   .metric-card {
-    @apply bg-white border-2 border-gray-800 p-4;
+    background: var(--horror-bg-card);
+    border: 1px solid var(--horror-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: all 0.3s ease;
+  }
+  
+  .metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   }
   
   .metric-value {
-    @apply text-3xl font-bold text-gray-900 font-mono;
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
   }
   
   .metric-label {
-    @apply text-sm text-gray-600 uppercase tracking-wide;
+    font-size: 0.75rem;
+    color: var(--horror-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Alerts */
+  .alert-success {
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    color: #4ade80;
+  }
+  
+  .alert-warning {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    color: #fbbf24;
+  }
+  
+  .alert-error {
+    background: rgba(139, 0, 0, 0.2);
+    border: 1px solid rgba(139, 0, 0, 0.4);
+    border-radius: 8px;
+    padding: 1rem;
+    color: #ff6b6b;
+  }
+}
+
+
+/* ============================================
+   UTILITY ANIMATIONS
+   ============================================ */
+
+@layer utilities {
+  /* Fade in up */
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+  
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Stagger children */
+  .stagger-children > * {
+    opacity: 0;
+    animation: fadeInUp 0.4s ease-out forwards;
+  }
+  
+  .stagger-children > *:nth-child(1) { animation-delay: 0.1s; }
+  .stagger-children > *:nth-child(2) { animation-delay: 0.2s; }
+  .stagger-children > *:nth-child(3) { animation-delay: 0.3s; }
+  .stagger-children > *:nth-child(4) { animation-delay: 0.4s; }
+  .stagger-children > *:nth-child(5) { animation-delay: 0.5s; }
+  .stagger-children > *:nth-child(6) { animation-delay: 0.6s; }
+  
+  /* Possession animation */
+  .animate-possession {
+    animation: possession 0.3s ease-in-out;
+  }
+  
+  @keyframes possession {
+    0%, 100% { transform: scale(1); filter: none; }
+    25% { transform: scale(1.05) skewX(2deg); filter: hue-rotate(180deg); }
+    50% { transform: scale(0.95) skewX(-2deg); filter: invert(0.1); }
+    75% { transform: scale(1.02) skewY(1deg); filter: saturate(2); }
+  }
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--horror-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--horror-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 0, 0, 0.5);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .panel {
+    padding: 1rem;
+  }
+  
+  .metric-value {
+    font-size: 1.5rem;
+  }
+  
+  .btn-primary, .btn-secondary, .btn-success, .btn-danger {
+    padding: 0.75rem 1.25rem;
   }
 }
